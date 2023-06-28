@@ -1,5 +1,13 @@
 ![MobileCoin logo](https://raw.githubusercontent.com/mobilecoinofficial/mobilecoin/master/img/mobilecoin_logo.png)
 
+# --- Archive Notes ---
+
+Out of an abundance of caution, before rewriting its history, we copied [libmobilecoin](https://github.com/mobilecoinofficial/libmobilecoin) as of tag `v5.0.3` to this repo `libmobilecoin-archive`. If `libmobilecoin` does not work in cocoapods for you try this in your `Podfile`:
+
+```ruby
+  pod 'LibMobileCoin/CoreHTTP', git: 'https://github.com/mobilecoinofficial/libmobilecoin-archive.git'
+```
+
 # libmobilecoin-ios-artifacts
 
 MobileCoin is a privacy-preserving payments network designed for use on mobile devices.
