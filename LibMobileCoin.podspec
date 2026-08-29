@@ -106,7 +106,7 @@ Pod::Spec.new do |s|
      ]
  
      subspec.dependency "gRPC-Swift"
-     subspec.dependency "SwiftProtobuf", "~> 1.36"
+     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
    end
 
    s.subspec "CoreHTTP" do |subspec|
@@ -123,7 +123,7 @@ Pod::Spec.new do |s|
        "Sources/Common/*.{pb}.swift",
      ]
  
-     subspec.dependency "SwiftProtobuf", "~> 1.36"
+     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
    end
 
    s.subspec "CoreGRPC" do |subspec|
@@ -140,7 +140,7 @@ Pod::Spec.new do |s|
      ]
  
      subspec.dependency "gRPC-Swift"
-     subspec.dependency "SwiftProtobuf", "~> 1.36"
+     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
    end
 
   # ――― Project Settings ――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
