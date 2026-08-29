@@ -1,6 +1,3 @@
 [submodule "Vendor/mobilecoin"]
 	path = Vendor/mobilecoin
 	url = https://github.com/mobilecoinfoundation/mobilecoin.git
-[submodule "Artifacts"]
-	path = Artifacts
-	url = https://github.com/mobilecoinofficial/libmobilecoin-apple-artifacts.git

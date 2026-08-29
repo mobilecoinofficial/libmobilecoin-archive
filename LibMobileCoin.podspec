@@ -3,18 +3,41 @@ Pod::Spec.new do |s|
   # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
   s.name         = "LibMobileCoin"
-  s.version      = "6.0.2"
+  s.version      = "6.0.4"
   s.summary      = "A library for communicating with MobileCoin network"
 
   s.author       = "MobileCoin"
   s.homepage     = "https://www.mobilecoin.com/"
   s.license      = { :type => "GPLv3" }
 
-  s.source       = { 
+  s.source       = {
     :git => "https://github.com/mobilecoinofficial/libmobilecoin.git",
-    :tag => "v#{s.version}",
-    :submodules => true
+    :tag => "v#{s.version}"
   }
+
+  # ――― Prebuilt binary ―――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
+
+  # The xcframework is downloaded and checksum-verified at install time. The
+  # same archive and checksum back the SwiftPM binaryTarget in Package.swift,
+  # so neither consumer needs git-lfs.
+  xcframework_url = "https://github.com/mobilecoinofficial/libmobilecoin/releases/download/v#{s.version}/LibMobileCoinLibrary.xcframework.zip"
+  xcframework_checksum = "11add94b73891b3203d627590fe3a1c3c53c561cf9f8817cbb7c378f78736527"
+
+  s.prepare_command = <<-CMD
+    set -eu
+    mkdir -p Artifacts
+    if [ ! -d Artifacts/LibMobileCoinLibrary.xcframework ]; then
+      curl --fail --location --silent --show-error \
+        --output Artifacts/xcframework.zip "#{xcframework_url}"
+      echo "#{xcframework_checksum}  Artifacts/xcframework.zip" | shasum -a 256 -c -
+      unzip -q -o Artifacts/xcframework.zip -d Artifacts
+      rm Artifacts/xcframework.zip
+    fi
+    # Every slice carries the same C headers. The pod compiles them into its own
+    # module map, so lift one copy to the path source_files already names.
+    mkdir -p Artifacts/include
+    cp Artifacts/LibMobileCoinLibrary.xcframework/ios-arm64/Headers/*.h Artifacts/include/
+  CMD
 
   # ――― Platform Specifics ――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
@@ -32,7 +55,7 @@ Pod::Spec.new do |s|
      ]
 
      subspec.preserve_paths = [
-       'Artifacts/target/**/libmobilecoin.a',
+       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
      subspec.resources = [
        "Sources/TestVector/vectors/*.*",
@@ -41,7 +64,7 @@ Pod::Spec.new do |s|
 
    s.subspec "Core" do |subspec|
      subspec.preserve_paths = [
-       'Artifacts/target/**/libmobilecoin.a',
+       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
  
      subspec.source_files = [
@@ -58,7 +81,7 @@ Pod::Spec.new do |s|
 
    s.subspec "CoreHTTP" do |subspec|
      subspec.preserve_paths = [
-       'Artifacts/target/**/libmobilecoin.a',
+       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
  
      subspec.source_files = [
@@ -73,7 +96,7 @@ Pod::Spec.new do |s|
 
    s.subspec "CoreGRPC" do |subspec|
      subspec.preserve_paths = [
-       'Artifacts/target/**/libmobilecoin.a',
+       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
  
      subspec.source_files = [
@@ -107,14 +130,11 @@ Pod::Spec.new do |s|
     "HEADER_SEARCH_PATHS": "$(PODS_TARGET_SRCROOT)/Artifacts/include",
     "SWIFT_INCLUDE_PATHS": "$(HEADER_SEARCH_PATHS)",
 
-    "LIBMOBILECOIN_LIB_IF_NEEDED": "$(PODS_TARGET_SRCROOT)/Artifacts/target/$(CARGO_BUILD_TARGET)/release/libmobilecoin.a",
+    "LIBMOBILECOIN_XCFRAMEWORK": "$(PODS_TARGET_SRCROOT)/Artifacts/LibMobileCoinLibrary.xcframework",
+    "LIBMOBILECOIN_LIB_IF_NEEDED[sdk=iphoneos*]": "$(LIBMOBILECOIN_XCFRAMEWORK)/ios-arm64/libmobilecoin.a",
+    "LIBMOBILECOIN_LIB_IF_NEEDED[sdk=iphonesimulator*]": "$(LIBMOBILECOIN_XCFRAMEWORK)/ios-arm64_x86_64-simulator/libmobilecoin_iossimulator.a",
+    "LIBMOBILECOIN_LIB_IF_NEEDED[sdk=macosx*]": "$(LIBMOBILECOIN_XCFRAMEWORK)/macos-arm64_x86_64/libmobilecoin_macos.a",
     "OTHER_LDFLAGS": "-lz -u _mc_string_free $(LIBMOBILECOIN_LIB_IF_NEEDED)",
-
-    "CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=arm64]": "aarch64-apple-ios-sim",
-    "CARGO_BUILD_TARGET[sdk=iphonesimulator*][arch=*]": "x86_64-apple-ios",
-    "CARGO_BUILD_TARGET[sdk=iphoneos*]": "aarch64-apple-ios",
-    "CARGO_BUILD_TARGET[sdk=macosx*][arch=arm64]": "aarch64-apple-darwin",
-    "CARGO_BUILD_TARGET[sdk=macosx*][arch=*]": "x86_64-apple-darwin",
 
     "VALID_ARCHS[sdk=iphoneos*]" => "arm64",
     "VALID_ARCHS[sdk=iphonesimulator*]" => "x86_64 arm64",

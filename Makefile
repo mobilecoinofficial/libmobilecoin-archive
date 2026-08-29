@@ -2,7 +2,8 @@ MOBILECOIN_DIR = Vendor/mobilecoin
 LIBMOBILECOIN_LIB_DIR = libmobilecoin
 LIBMOBILECOIN_ARTIFACTS_DIR = $(LIBMOBILECOIN_LIB_DIR)/out/ios
 LIBMOBILECOIN_ARTIFACTS_HEADERS = $(LIBMOBILECOIN_LIB_DIR)/out/ios/include
-ARTIFACTS_DIR = Artifacts
+ARTIFACTS_DIR = .build/artifacts
+RELEASE_ZIP = .build/LibMobileCoinLibrary.xcframework.zip
 TEST_VECTOR_DIR = Sources/TestVector
 IOS_TARGETS = aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios x86_64-apple-darwin aarch64-apple-darwin
 
@@ -70,11 +71,11 @@ generate-test-vectors:
 
 .PHONY: generate-xcframework
 generate-xcframework:
-	rm -rf Artifacts/LibMobileCoinLibrary.xcframework || true
+	rm -rf $(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework || true
 	rm libmobilecoin/out/ios/target/libmobilecoin_macos.a || true
 	rm libmobilecoin/out/ios/target/libmobilecoin_iossimulator.a || true
 	mkdir -p .build/headers
-	cp Artifacts/include/* .build/headers
+	cp $(ARTIFACTS_DIR)/include/* .build/headers
 	cp modulemap/module.modulemap .build/headers
 	mkdir -p libmobilecoin/out/ios/target
 	lipo -create \
@@ -104,7 +105,7 @@ lint: lint-podspec
 lint-locally: lint-locally-podspec
 
 .PHONY: publish
-publish: save-release-artifacts tag-release publish-podspec
+publish: package tag-release publish-podspec
 
 .PHONY: publish-hotfix
 publish-hotfix: tag-hotfix publish-podspec
@@ -121,17 +122,13 @@ push-generated:
 
 # Release
 
-.PHONY: save-release-artifacts
-save-release-artifacts:
-	@[[ "$$(git rev-parse --abbrev-ref HEAD)" == "master" ]] || \
-		{ echo 'Error: Must be on branch "master" when tagging a release.'; exit 1; }
-	VERSION="$$(bundle exec pod ipc spec LibMobileCoin.podspec | jq -r '.version')" && \
-		SHORTSHA="$$(git rev-parse --short HEAD)" && \
-		TIME="$$(date +%s)" && \
-		cd Artifacts && \
-		git checkout -b "master-$$VERSION-$$SHORTSHA-$$TIME" && \
-		git push origin "master-$$VERSION-$$SHORTSHA-$$TIME"
-	
+# Build the reproducible release zip and print its SwiftPM checksum. The
+# checksum is what Package.swift and the podspec both pin.
+.PHONY: package
+package:
+	tools/package-xcframework.sh \
+		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)"
+
 .PHONY: tag-release
 tag-release:
 	@[[ "$$(git rev-parse --abbrev-ref HEAD)" == "master" ]] || \

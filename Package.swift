@@ -54,9 +54,13 @@ let package = Package(
             dependencies: [.target(name: "LibMobileCoinCommon"), .product(name: "GRPC", package: "grpc-swift")],
             path: "Sources/GRPC"
         ),
+        // The binary ships as a checksummed release asset, not as a git
+        // submodule. tools/package-xcframework.sh builds the zip reproducibly,
+        // so this checksum is stable for a given xcframework tree.
         .binaryTarget(
             name: "LibMobileCoinLibrary",
-            path: "Artifacts/LibMobileCoinLibrary.xcframework"
+            url: "https://github.com/mobilecoinofficial/libmobilecoin/releases/download/v6.0.4/LibMobileCoinLibrary.xcframework.zip",
+            checksum: "11add94b73891b3203d627590fe3a1c3c53c561cf9f8817cbb7c378f78736527"
         )
     ]
 )

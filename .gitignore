@@ -85,3 +85,6 @@ iOSInjectionProject/
 .bundle/
 .vendor/
 .DS_Store
+
+# The release xcframework, downloaded by the podspec prepare_command.
+/Artifacts/
