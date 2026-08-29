@@ -2,8 +2,11 @@ MOBILECOIN_DIR = Vendor/mobilecoin
 LIBMOBILECOIN_LIB_DIR = libmobilecoin
 LIBMOBILECOIN_ARTIFACTS_DIR = $(LIBMOBILECOIN_LIB_DIR)/out/ios
 LIBMOBILECOIN_ARTIFACTS_HEADERS = $(LIBMOBILECOIN_LIB_DIR)/out/ios/include
-ARTIFACTS_DIR = .build/artifacts
+# Not .build/artifacts: SwiftPM extracts binary targets there, and
+# clean-artifacts would delete them.
+ARTIFACTS_DIR = .build/mc-artifacts
 RELEASE_ZIP = .build/LibMobileCoinLibrary.xcframework.zip
+GITHUB_REPO = mobilecoinofficial/libmobilecoin
 TEST_VECTOR_DIR = Sources/TestVector
 IOS_TARGETS = aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios x86_64-apple-darwin aarch64-apple-darwin
 
@@ -105,7 +108,7 @@ lint: lint-podspec
 lint-locally: lint-locally-podspec
 
 .PHONY: publish
-publish: package tag-release publish-podspec
+publish: package tag-release upload-release publish-podspec
 
 .PHONY: publish-hotfix
 publish-hotfix: tag-hotfix publish-podspec
@@ -128,6 +131,21 @@ push-generated:
 package:
 	tools/package-xcframework.sh \
 		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)"
+
+# Attach the packaged zip to the release for the tag tag-release just pushed.
+# Package.swift and the podspec both point a consumer at this exact URL, so
+# until this runs neither of them resolves.
+.PHONY: upload-release
+upload-release:
+	@set -eu; \
+	[ -f "$(RELEASE_ZIP)" ] || \
+		{ echo 'Error: $(RELEASE_ZIP) not found. Run `make package` first.'; exit 1; }; \
+	VERSION="$$(bundle exec pod ipc spec LibMobileCoin.podspec | jq -r '.version')"; \
+	if ! gh release view "v$$VERSION" --repo $(GITHUB_REPO) >/dev/null 2>&1; then \
+		gh release create "v$$VERSION" --repo $(GITHUB_REPO) --title "v$$VERSION" --notes ""; \
+	fi; \
+	gh release upload "v$$VERSION" "$(RELEASE_ZIP)" --repo $(GITHUB_REPO) --clobber; \
+	echo "uploaded $(RELEASE_ZIP) to v$$VERSION"
 
 .PHONY: tag-release
 tag-release:

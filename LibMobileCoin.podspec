@@ -26,12 +26,20 @@ Pod::Spec.new do |s|
   s.prepare_command = <<-CMD
     set -eu
     mkdir -p Artifacts
-    if [ ! -d Artifacts/LibMobileCoinLibrary.xcframework ]; then
+    # The stamp carries the checksum, so a tree left over from a different
+    # version - or a half-extracted one from an interrupted unzip - re-downloads
+    # instead of being silently accepted. Written only after unzip succeeds.
+    stamp="Artifacts/.xcframework-#{xcframework_checksum}"
+    if [ ! -f "$stamp" ]; then
+      rm -rf Artifacts/LibMobileCoinLibrary.xcframework
+      rm -f Artifacts/.xcframework-*
       curl --fail --location --silent --show-error \
+        --retry 3 --retry-connrefused \
         --output Artifacts/xcframework.zip "#{xcframework_url}"
       echo "#{xcframework_checksum}  Artifacts/xcframework.zip" | shasum -a 256 -c -
       unzip -q -o Artifacts/xcframework.zip -d Artifacts
       rm Artifacts/xcframework.zip
+      touch "$stamp"
     fi
     # Every slice carries the same C headers. The pod compiles them into its own
     # module map, so lift one copy to the path source_files already names.

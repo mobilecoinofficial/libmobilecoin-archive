@@ -34,6 +34,9 @@ find "$STAGING" -type d -exec chmod 755 {} +
 find "$STAGING" -type f -exec chmod 644 {} +
 find "$STAGING" -exec touch -t 198001010000 {} +
 
+# mkdir -p before the cd: on a clean checkout .build does not exist yet, and
+# `cd` to a missing directory would leave OUTPUT_ABS rooted at /.
+mkdir -p "$(dirname "$OUTPUT")"
 rm -f "$OUTPUT"
 OUTPUT_ABS="$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")"
 
