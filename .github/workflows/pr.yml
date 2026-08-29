@@ -29,12 +29,20 @@ jobs:
           set -euo pipefail
           . ./release.env
           URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LibMobileCoinLibrary.xcframework.zip"
-          if curl --silent --location --fail --head --output /dev/null "$URL"; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No asset for v${VERSION} yet. Skipping the jobs that download it."
-          fi
+          # Branch on the status, not on curl's exit. A DNS blip or a 5xx would
+          # otherwise read as "no asset" and skip every job that verifies anything.
+          CODE="$(curl --silent --location --head --output /dev/null \
+            --retry 3 --retry-all-errors --write-out '%{http_code}' "$URL")"
+          case "$CODE" in
+            200)
+              echo "exists=true" >> "$GITHUB_OUTPUT" ;;
+            404)
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::No asset for v${VERSION} yet. Skipping the jobs that download it." ;;
+            *)
+              echo "error: probing $URL returned $CODE, which is neither 200 nor 404" >&2
+              exit 1 ;;
+          esac
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
   manifest:
@@ -84,7 +92,19 @@ jobs:
               dependencies: [.package(url: "$DEP/libmobilecoin", exact: "$VERSION")],
               targets: [.target(name: "App")])
           EOF
-          cd "$APP" && swift package dump-package > /dev/null
+          # resolve, not dump-package: dump-package reads only the ROOT manifest and
+          # exits 0 even when the dependency's manifest cannot compile.
+          # The artifact is not published yet at release time, so only a manifest
+          # error is fatal here. The consumer resolve after publish covers the rest.
+          cd "$APP"
+          set +e
+          swift package resolve > resolve.log 2>&1
+          set -e
+          if grep -q "Invalid manifest" resolve.log; then
+            echo "error: the dependency manifest failed to compile under the VFS overlay" >&2
+            cat resolve.log >&2
+            exit 1
+          fi
 
   swiftpm:
     name: SwiftPM resolve and build
