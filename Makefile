@@ -41,9 +41,6 @@ unexport CARGO_PROFILE
 build: vendor
 	cd "$(LIBMOBILECOIN_LIB_DIR)" && $(MAKE)
 
-.PHONY: framework
-framework:
-	cd "$(LIBMOBILECOIN_LIB_DIR)" && $(MAKE) xcframework
 
 .PHONY: clean-artifacts
 clean-artifacts:
