@@ -37,9 +37,12 @@ let package = Package(
     dependencies: [
         // Here we define our package's external dependencies
         // and from where they can be fetched:
+        // The floor tracks the protoc-gen-swift pin in the Makefile. Generated
+        // code calls runtime API that did not exist in the old floor, so a
+        // consumer resolving below this fails to compile.
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            from: "1.28.2"
+            from: "1.36.1"
         ),
         .package(url: "https://github.com/grpc/grpc-swift.git", from: "1.24.1")
     ],
