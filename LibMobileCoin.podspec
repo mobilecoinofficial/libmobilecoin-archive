@@ -62,13 +62,12 @@ Pod::Spec.new do |s|
 
   # ――― Privacy manifest ―――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
-  # resource_bundles is NOT an inherited attribute, so a declaration here reaches
-  # zero subspec consumers and every real install is subspec-only. Each subspec
-  # below declares it from this constant instead.
+  # resource_bundles is NOT inherited, so each subspec declares it from this
+  # constant. Setting it on the root spec too makes `pod lib lint` build the
+  # bundle twice under one name and fail with "Multiple commands produce".
   privacy_bundle = {
     "LibMobileCoin_Privacy" => ["Sources/Common/PrivacyInfo.xcprivacy"]
   }
-  s.resource_bundles = privacy_bundle
 
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 

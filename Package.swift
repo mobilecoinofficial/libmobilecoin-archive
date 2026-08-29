@@ -56,9 +56,9 @@ let package = Package(
             name: "LibMobileCoinCommon",
             dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")],
             path: "Sources/Common",
-            // Every product includes this target, so one copy reaches every
-            // consumer. The manifest declares no tracking and no accessed API,
-            // which is what the sources and the Rust FFI actually do.
+            // Every shipping product includes this target, so one copy reaches
+            // every consumer. The manifest declares no tracking, and file
+            // timestamps as the one accessed API category.
             resources: [
                 .copy("PrivacyInfo.xcprivacy")
             ]
