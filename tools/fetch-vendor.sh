@@ -27,15 +27,24 @@ fi
 # leave a half-populated tree with no error. mkdir is atomic on every filesystem
 # we build on; flock is not on macOS.
 LOCK_DIR="$REPO_ROOT/Vendor/.mobilecoin.lock"
-for _ in $(seq 1 300); do
+# is_locked tracks OUR mkdir. Testing [ -d "$LOCK_DIR" ] would read as success
+# exactly when another process holds the lock, so the timeout could never fire.
+is_locked=0
+for attempt in $(seq 1 300); do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
         # shellcheck disable=SC2064
-        trap "rmdir '$LOCK_DIR' 2>/dev/null || true" EXIT
+        trap "rmdir \"$LOCK_DIR\" 2>/dev/null || true" EXIT INT TERM
+        is_locked=1
         break
     fi
+    [ "$attempt" = 1 ] && echo "waiting for $LOCK_DIR" >&2
     sleep 1
 done
-[ -d "$LOCK_DIR" ] || { echo "error: could not acquire $LOCK_DIR" >&2; exit 1; }
+[ "$is_locked" = 1 ] || {
+    echo "error: could not acquire $LOCK_DIR after 300s." >&2
+    echo "       If no other build is running, remove it: rmdir $LOCK_DIR" >&2
+    exit 1
+}
 
 # -e, not -d: in a submodule checkout .git is a FILE holding a gitdir pointer,
 # and a developer may have symlinked this path at a shared foundation clone.
