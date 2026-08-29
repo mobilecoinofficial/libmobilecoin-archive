@@ -62,11 +62,13 @@ Pod::Spec.new do |s|
 
   # ――― Privacy manifest ―――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
-  # Declares no tracking and no accessed API, which is what the sources and the
-  # Rust FFI do. Package.swift ships the same file as a SwiftPM resource.
-  s.resource_bundles = {
+  # resource_bundles is NOT an inherited attribute, so a declaration here reaches
+  # zero subspec consumers and every real install is subspec-only. Each subspec
+  # below declares it from this constant instead.
+  privacy_bundle = {
     "LibMobileCoin_Privacy" => ["Sources/Common/PrivacyInfo.xcprivacy"]
   }
+  s.resource_bundles = privacy_bundle
 
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
@@ -74,6 +76,8 @@ Pod::Spec.new do |s|
   s.default_subspecs = "Core"
 
    s.subspec "TestVectors" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.source_files = [
        "Sources/TestVector/Util/Bundle+TestVector.swift",
        "Sources/TestVector/Util/TestVectorError.swift"
@@ -88,6 +92,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "Core" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
@@ -105,6 +111,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "CoreHTTP" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
@@ -120,6 +128,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "CoreGRPC" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]

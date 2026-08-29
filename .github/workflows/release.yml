@@ -89,9 +89,10 @@ jobs:
         run: make setup build clean-artifacts copy
 
       # Signing changes the bytes inside the xcframework, so it has to happen
-      # before the archive is built and checksummed.
+      # before the archive is built and checksummed. It runs in a dry run too,
+      # otherwise the whole signing path stays unexercised until a real release
+      # and the dry run checksums an archive no release would ever publish.
       - name: Import the signing certificate
-        if: ${{ !inputs.dry_run }}
         env:
           CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -110,12 +111,11 @@ jobs:
           security import "${RUNNER_TEMP}/certificate.p12" \
             -k "${KEYCHAIN}" -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
           rm -f "${RUNNER_TEMP}/certificate.p12"
-          security set-key-partition-list -S apple-tool:,apple: \
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
             -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}" > /dev/null
           security list-keychain -d user -s "${KEYCHAIN}" login.keychain-db
 
       - name: Sign the xcframework
-        if: ${{ !inputs.dry_run }}
         env:
           SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
@@ -124,10 +124,20 @@ jobs:
             echo "error: APPLE_SIGNING_IDENTITY is not set" >&2
             exit 1
           fi
-          codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
-            .build/artifacts/LibMobileCoinLibrary.xcframework
+          for attempt in 1 2 3 4 5; do
+            if codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
+                 .build/mc-artifacts/LibMobileCoinLibrary.xcframework; then
+              break
+            fi
+            if [ "${attempt}" = 5 ]; then
+              echo "error: codesign failed 5 times; timestamp.apple.com may be down" >&2
+              exit 1
+            fi
+            echo "codesign attempt ${attempt} failed, retrying in $((attempt * 15))s" >&2
+            sleep $((attempt * 15))
+          done
           codesign --verify --strict --verbose=2 \
-            .build/artifacts/LibMobileCoinLibrary.xcframework
+            .build/mc-artifacts/LibMobileCoinLibrary.xcframework
 
       - name: Package and stamp release.env
         run: make stamp
@@ -146,7 +156,7 @@ jobs:
           set -euo pipefail
           FIRST="$(shasum -a 256 .build/LibMobileCoinLibrary.xcframework.zip | cut -d' ' -f1)"
           tools/package-xcframework.sh \
-            .build/artifacts/LibMobileCoinLibrary.xcframework \
+            .build/mc-artifacts/LibMobileCoinLibrary.xcframework \
             .build/repack.zip > /dev/null
           SECOND="$(shasum -a 256 .build/repack.zip | cut -d' ' -f1)"
           rm -f .build/repack.zip
@@ -160,7 +170,6 @@ jobs:
       # The packager rewrites mode and mtime on every file, so prove the seal
       # still verifies after a round trip through the archive.
       - name: Verify the signature survives the archive
-        if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
           UNPACKED="$(mktemp -d)"
