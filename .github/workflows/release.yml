@@ -1,0 +1,176 @@
+# Cut a release: build the xcframework, publish it as a checksummed asset, stamp
+# release.env, tag, and push the pod.
+#
+# Runs on workflow_dispatch, not on a tag push, because the tagged commit has to
+# already carry the asset checksum and that is only known after the Rust build.
+# The workflow therefore builds first and creates the tag itself.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and check the archive without tagging or publishing
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-15
+    # The Rust build covers five targets from a cold cache.
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          # The workflow commits the stamped release.env.
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Read release settings
+        id: settings
+        run: |
+          set -euo pipefail
+          . ./release.env
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to reuse an existing tag
+        env:
+          TAG: ${{ steps.settings.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "error: ${TAG} already exists. Bump VERSION in release.env." >&2
+            exit 1
+          fi
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          brew update-reset
+          brew install llvm ninja pkg-config
+          brew bundle --no-upgrade
+
+      - name: Install Rust
+        run: |
+          set -euo pipefail
+          command -v rustup >/dev/null \
+            || curl https://sh.rustup.rs --tlsv1.2 -sSf | sh -s -- -y --default-toolchain stable
+          echo "${HOME}/.cargo/bin" >> "$GITHUB_PATH"
+
+      # Vendor/mobilecoin is fetched at the revision in Vendor/mobilecoin.rev,
+      # so the cache key has to include it.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: libmobilecoin
+          key: ${{ hashFiles('Vendor/mobilecoin.rev', 'libmobilecoin/Cargo.lock') }}
+
+      - name: Build the xcframework
+        run: make setup build clean-artifacts copy
+
+      - name: Package and stamp release.env
+        run: make stamp
+
+      - name: Verify the archive matches the stamped checksum
+        run: |
+          set -euo pipefail
+          . ./release.env
+          echo "${XCFRAMEWORK_SHA256}  .build/LibMobileCoinLibrary.xcframework.zip" \
+            | shasum -a 256 -c -
+
+      # Two runs of the packager over one xcframework must agree, otherwise a
+      # consumer can resolve a checksum the manifest never carried.
+      - name: Verify the packaging is reproducible
+        run: |
+          set -euo pipefail
+          FIRST="$(shasum -a 256 .build/LibMobileCoinLibrary.xcframework.zip | cut -d' ' -f1)"
+          tools/package-xcframework.sh \
+            .build/artifacts/LibMobileCoinLibrary.xcframework \
+            .build/repack.zip > /dev/null
+          SECOND="$(shasum -a 256 .build/repack.zip | cut -d' ' -f1)"
+          rm -f .build/repack.zip
+          [ "$FIRST" = "$SECOND" ] || {
+            echo "error: repacking the same xcframework changed the checksum" >&2
+            echo "  first:  $FIRST" >&2
+            echo "  second: $SECOND" >&2
+            exit 1
+          }
+
+      - name: Upload the archive as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LibMobileCoinLibrary.xcframework.zip
+          path: .build/LibMobileCoinLibrary.xcframework.zip
+          retention-days: 7
+
+      - name: Commit the stamp and tag
+        if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ steps.settings.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add release.env
+          git diff --cached --quiet || git commit -m "chore: stamp release.env for ${TAG}"
+          git tag "${TAG}"
+          git push origin HEAD:master "refs/tags/${TAG}"
+
+      - name: Create the release and upload the asset
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.settings.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --generate-notes \
+            .build/LibMobileCoinLibrary.xcframework.zip
+
+      # Resolving from the published tag is the only check that proves a
+      # consumer can install this release.
+      - name: Resolve the published release as a consumer would
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          CONSUMER="$(mktemp -d)"
+          mkdir -p "${CONSUMER}/Sources/Consumer"
+          echo 'import LibMobileCoinCommon' > "${CONSUMER}/Sources/Consumer/Consumer.swift"
+          cat > "${CONSUMER}/Package.swift" <<EOF
+          // swift-tools-version:5.7
+          import PackageDescription
+          let package = Package(
+              name: "Consumer",
+              platforms: [.iOS(.v13), .macOS(.v11)],
+              dependencies: [
+                  .package(url: "https://github.com/${{ github.repository }}.git", exact: "${{ steps.settings.outputs.version }}")
+              ],
+              targets: [
+                  .target(name: "Consumer", dependencies: [
+                      .product(name: "LibMobileCoinCore", package: "libmobilecoin")
+                  ])
+              ]
+          )
+          EOF
+          swift build --package-path "${CONSUMER}"
+
+      - name: Publish the pod
+        if: ${{ !inputs.dry_run }}
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: bundle exec pod trunk push LibMobileCoin.podspec --allow-warnings

@@ -1,0 +1,71 @@
+name: PR
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  swiftpm:
+    name: SwiftPM resolve and build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # A consumer checkout must not need git-lfs or any submodule. Prove it by
+      # resolving with neither configured.
+      - name: Assert the checkout carries no submodules
+        run: |
+          set -euo pipefail
+          if [ -f .gitmodules ]; then
+            echo "error: .gitmodules is back; SwiftPM consumers will clone it" >&2
+            exit 1
+          fi
+          if git ls-tree -r HEAD | grep -E '^160000 '; then
+            echo "error: a gitlink survived with no .gitmodules entry" >&2
+            exit 1
+          fi
+
+      - name: Assert release.env drives Package.swift
+        run: |
+          set -euo pipefail
+          . ./release.env
+          swift package dump-package > /tmp/manifest.json
+          grep -q "download/v${VERSION}/LibMobileCoinLibrary.xcframework.zip" /tmp/manifest.json
+          grep -q "\"${XCFRAMEWORK_SHA256}\"" /tmp/manifest.json
+
+      # resolve downloads the binaryTarget and verifies its checksum, so a stale
+      # or wrong XCFRAMEWORK_SHA256 fails here.
+      - name: Resolve
+        run: swift package resolve
+
+      - name: Build
+        run: swift build
+
+  podspec:
+    name: pod lib lint
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        subspec: [Core, CoreHTTP, CoreGRPC, TestVectors]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+
+      - name: Lint ${{ matrix.subspec }}
+        run: >
+          bundle exec pod lib lint LibMobileCoin.podspec
+          --subspec=${{ matrix.subspec }}
+          --allow-warnings
