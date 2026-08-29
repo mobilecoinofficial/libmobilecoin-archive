@@ -1,3 +1,0 @@
-[submodule "Vendor/mobilecoin"]
-	path = Vendor/mobilecoin
-	url = https://github.com/mobilecoinfoundation/mobilecoin.git
