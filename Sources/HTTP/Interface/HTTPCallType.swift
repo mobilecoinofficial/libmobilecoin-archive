@@ -4,6 +4,6 @@
 
 import Foundation
 
-public enum HTTPCallType {
+public enum HTTPCallType: Sendable {
     case unary
 }

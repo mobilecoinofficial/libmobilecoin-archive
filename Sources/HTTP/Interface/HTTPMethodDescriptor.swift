@@ -4,7 +4,7 @@
 
 import Foundation
 
-public struct HTTPMethodDescriptor {
+public struct HTTPMethodDescriptor: Sendable {
     let name: String
     let path: String
     let type: HTTPCallType

@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:6.1
 import PackageDescription
 // release.env is the single source of truth for these two. `make stamp` writes
 // them in here; a manifest cannot read a sidecar file at resolve time.
