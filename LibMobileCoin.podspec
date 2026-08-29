@@ -56,7 +56,9 @@ Pod::Spec.new do |s|
 
   # ――― Platform Specifics ――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
-  s.platform     = :ios, "11.0"
+  # Matches the .iOS(.v13) floor in Package.swift. Xcode 15 and later reject a
+  # deployment target below 12.0 outright.
+  s.platform     = :ios, "13.0"
 
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
