@@ -1,3 +1,8 @@
+# The single source of truth for VERSION and XCFRAMEWORK_SHA256. Package.swift
+# and LibMobileCoin.podspec read the same file. Plain KEY=value lines, so make
+# includes it directly.
+include release.env
+
 MOBILECOIN_DIR = Vendor/mobilecoin
 LIBMOBILECOIN_LIB_DIR = libmobilecoin
 LIBMOBILECOIN_ARTIFACTS_DIR = $(LIBMOBILECOIN_LIB_DIR)/out/ios
@@ -110,8 +115,16 @@ lint: lint-podspec
 .PHONY: lint-locally
 lint-locally: lint-locally-podspec
 
+# stamp must land in a commit before the tag is created, because Package.swift
+# and the podspec read the checksum out of release.env at the tagged revision.
 .PHONY: publish
-publish: package tag-release upload-release publish-podspec
+publish: stamp commit-stamp tag-release upload-release publish-podspec
+
+.PHONY: commit-stamp
+commit-stamp:
+	@git diff --quiet -- release.env || \
+		{ git add release.env && \
+			git commit -m "chore: stamp release.env for v$(VERSION)"; }
 
 .PHONY: publish-hotfix
 publish-hotfix: tag-hotfix publish-podspec
@@ -135,6 +148,15 @@ package:
 	tools/package-xcframework.sh \
 		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)"
 
+# Write the checksum of the built zip back into release.env. Package.swift and
+# the podspec both read it from there, so this is the whole stamp step.
+.PHONY: stamp
+stamp:
+	@CHECKSUM="$$(tools/package-xcframework.sh \
+		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)")" && \
+		sed -i '' "s|^XCFRAMEWORK_SHA256=.*|XCFRAMEWORK_SHA256=$$CHECKSUM|" release.env && \
+		echo "release.env stamped with $$CHECKSUM"
+
 # Attach the packaged zip to the release for the tag tag-release just pushed.
 # Package.swift and the podspec both point a consumer at this exact URL, so
 # until this runs neither of them resolves.
@@ -142,28 +164,23 @@ package:
 upload-release:
 	@set -eu; \
 	[ -f "$(RELEASE_ZIP)" ] || \
-		{ echo 'Error: $(RELEASE_ZIP) not found. Run `make package` first.'; exit 1; }; \
-	VERSION="$$(bundle exec pod ipc spec LibMobileCoin.podspec | jq -r '.version')"; \
-	if ! gh release view "v$$VERSION" --repo $(GITHUB_REPO) >/dev/null 2>&1; then \
-		gh release create "v$$VERSION" --repo $(GITHUB_REPO) --title "v$$VERSION" --notes ""; \
+		{ echo 'Error: $(RELEASE_ZIP) not found. Run `make stamp` first.'; exit 1; }; \
+	if ! gh release view "v$(VERSION)" --repo $(GITHUB_REPO) >/dev/null 2>&1; then \
+		gh release create "v$(VERSION)" --repo $(GITHUB_REPO) --title "v$(VERSION)" --notes ""; \
 	fi; \
-	gh release upload "v$$VERSION" "$(RELEASE_ZIP)" --repo $(GITHUB_REPO) --clobber; \
-	echo "uploaded $(RELEASE_ZIP) to v$$VERSION"
+	gh release upload "v$(VERSION)" "$(RELEASE_ZIP)" --repo $(GITHUB_REPO) --clobber; \
+	echo "uploaded $(RELEASE_ZIP) to v$(VERSION)"
 
 .PHONY: tag-release
 tag-release:
 	@[[ "$$(git rev-parse --abbrev-ref HEAD)" == "master" ]] || \
 		{ echo 'Error: Must be on branch "master" when tagging a release.'; exit 1; }
-	VERSION="$$(bundle exec pod ipc spec LibMobileCoin.podspec | jq -r '.version')" && \
-		git tag "v$$VERSION" && \
-		git push git@github.com:mobilecoinofficial/libmobilecoin.git "refs/tags/v$$VERSION"
-	
+	$(MAKE) tag-hotfix
 
 .PHONY: tag-hotfix
 tag-hotfix:
-	VERSION="$$(bundle exec pod ipc spec LibMobileCoin.podspec | jq -r '.version')" && \
-		git tag "v$$VERSION" && \
-		git push git@github.com:mobilecoinofficial/libmobilecoin.git "refs/tags/v$$VERSION"
+	git tag "v$(VERSION)"
+	git push git@github.com:mobilecoinofficial/libmobilecoin.git "refs/tags/v$(VERSION)"
 
 # LibMobileCoin pod
 
