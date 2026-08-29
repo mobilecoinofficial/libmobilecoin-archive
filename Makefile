@@ -124,7 +124,7 @@ publish: stamp commit-stamp tag-release upload-release publish-podspec
 
 .PHONY: commit-stamp
 commit-stamp:
-	@git diff --quiet -- release.env Package.swift || \
+	@git diff HEAD --quiet -- release.env Package.swift || \
 		{ git add release.env Package.swift && \
 			git commit -m "chore: stamp release.env for v$(VERSION)"; }
 

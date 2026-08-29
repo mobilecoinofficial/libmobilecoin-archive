@@ -145,7 +145,19 @@ jobs:
               dependencies: [.package(url: "$DEP/libmobilecoin", exact: "$VERSION")],
               targets: [.target(name: "App")])
           EOF
-          cd "$APP" && swift package dump-package > /dev/null
+          # resolve, not dump-package: dump-package reads only the ROOT manifest and
+          # exits 0 even when the dependency's manifest cannot compile.
+          # The artifact is not published yet at release time, so only a manifest
+          # error is fatal here. The consumer resolve after publish covers the rest.
+          cd "$APP"
+          set +e
+          swift package resolve > resolve.log 2>&1
+          set -e
+          if grep -q "Invalid manifest" resolve.log; then
+            echo "error: the dependency manifest failed to compile under the VFS overlay" >&2
+            cat resolve.log >&2
+            exit 1
+          fi
 
       - name: Commit the stamp and tag
         if: ${{ !inputs.dry_run }}
@@ -155,10 +167,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add release.env
+          git add release.env Package.swift
           git diff --cached --quiet || git commit -m "chore: stamp release.env for ${TAG}"
           git tag "${TAG}"
-          git push origin HEAD:master "refs/tags/${TAG}"
+          git push --atomic origin HEAD:master "refs/tags/${TAG}"
 
       - name: Create the release and upload the asset
         if: ${{ !inputs.dry_run }}
