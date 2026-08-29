@@ -88,6 +88,47 @@ jobs:
       - name: Build the xcframework
         run: make setup build clean-artifacts copy
 
+      # Signing changes the bytes inside the xcframework, so it has to happen
+      # before the archive is built and checksummed.
+      - name: Import the signing certificate
+        if: ${{ !inputs.dry_run }}
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CERTIFICATE_P12}" ]; then
+            echo "error: APPLE_CERTIFICATE_P12 is not set, so the release cannot be signed" >&2
+            exit 1
+          fi
+          KEYCHAIN="${RUNNER_TEMP}/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
+          echo "${CERTIFICATE_P12}" | base64 --decode > "${RUNNER_TEMP}/certificate.p12"
+          security import "${RUNNER_TEMP}/certificate.p12" \
+            -k "${KEYCHAIN}" -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
+          rm -f "${RUNNER_TEMP}/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}" > /dev/null
+          security list-keychain -d user -s "${KEYCHAIN}" login.keychain-db
+
+      - name: Sign the xcframework
+        if: ${{ !inputs.dry_run }}
+        env:
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SIGNING_IDENTITY}" ]; then
+            echo "error: APPLE_SIGNING_IDENTITY is not set" >&2
+            exit 1
+          fi
+          codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
+            .build/artifacts/LibMobileCoinLibrary.xcframework
+          codesign --verify --strict --verbose=2 \
+            .build/artifacts/LibMobileCoinLibrary.xcframework
+
       - name: Package and stamp release.env
         run: make stamp
 
@@ -115,6 +156,17 @@ jobs:
             echo "  second: $SECOND" >&2
             exit 1
           }
+
+      # The packager rewrites mode and mtime on every file, so prove the seal
+      # still verifies after a round trip through the archive.
+      - name: Verify the signature survives the archive
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          UNPACKED="$(mktemp -d)"
+          unzip -q .build/LibMobileCoinLibrary.xcframework.zip -d "${UNPACKED}"
+          codesign --verify --strict --verbose=2 \
+            "${UNPACKED}/LibMobileCoinLibrary.xcframework"
 
       - name: Upload the archive as a workflow artifact
         uses: actions/upload-artifact@v4

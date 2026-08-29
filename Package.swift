@@ -55,7 +55,13 @@ let package = Package(
         .target(
             name: "LibMobileCoinCommon",
             dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")],
-            path: "Sources/Common"
+            path: "Sources/Common",
+            // Every product includes this target, so one copy reaches every
+            // consumer. The manifest declares no tracking and no accessed API,
+            // which is what the sources and the Rust FFI actually do.
+            resources: [
+                .copy("PrivacyInfo.xcprivacy")
+            ]
          ),
         .target(
             name: "LibMobileCoinHTTP",

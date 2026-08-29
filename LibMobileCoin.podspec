@@ -60,6 +60,14 @@ Pod::Spec.new do |s|
   # deployment target below 12.0 outright.
   s.platform     = :ios, "13.0"
 
+  # ――― Privacy manifest ―――――――――――――――――――――――――――――――――――――――――――――――――――――― #
+
+  # Declares no tracking and no accessed API, which is what the sources and the
+  # Rust FFI do. Package.swift ships the same file as a SwiftPM resource.
+  s.resource_bundles = {
+    "LibMobileCoin_Privacy" => ["Sources/Common/PrivacyInfo.xcprivacy"]
+  }
+
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
   # s.default_subspecs = :none
