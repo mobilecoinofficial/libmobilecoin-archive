@@ -68,11 +68,18 @@ copy-libs:
 .PHONY: generate
 generate: generate-test-vectors generate-protoc 
 
+# The generator versions. protoc-gen-grpc-swift stays on 1.0.0: its output is
+# byte-identical to what is committed, and Sources/GRPC is on no consumer path.
+GRPC_SWIFT_GENERATOR := 1.0.0
+SWIFT_PROTOBUF_GENERATOR := 1.36.1
+HTTP_SWIFT_GENERATOR := f19b2756c423ef066568459b5b45e3f3cbbce16f
+
 .PHONY: generate-protoc
 generate-protoc: vendor
-	rm -r Sources/Generated/Proto 2>/dev/null || true
 	DOCKER_BUILDKIT=1 docker build . \
-		--build-arg grpc_swift_version=1.0.0 \
+		--build-arg grpc_swift_version=$(GRPC_SWIFT_GENERATOR) \
+		--build-arg swift_protobuf_version=$(SWIFT_PROTOBUF_GENERATOR) \
+		--build-arg http_swift_revision=$(HTTP_SWIFT_GENERATOR) \
 		--output .
 
 .PHONY: generate-test-vectors
