@@ -13,8 +13,32 @@ permissions:
   contents: read
 
 jobs:
-  swiftpm:
-    name: SwiftPM resolve and build
+  # The version in release.env is bumped on master BEFORE the release exists, so
+  # for one commit there is no asset to download. Every job that would fetch it
+  # keys off this.
+  release-asset:
+    name: Check whether the release asset exists
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.probe.outputs.exists }}
+      version: ${{ steps.probe.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: probe
+        run: |
+          set -euo pipefail
+          . ./release.env
+          URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/LibMobileCoinLibrary.xcframework.zip"
+          if curl --silent --location --fail --head --output /dev/null "$URL"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No asset for v${VERSION} yet. Skipping the jobs that download it."
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+  manifest:
+    name: Manifest and checkout shape
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -33,13 +57,42 @@ jobs:
             exit 1
           fi
 
-      - name: Assert release.env drives Package.swift
+      # release.env is the source of truth, Package.swift carries the literals.
+      # This is what catches a bump that forgot `make stamp-manifest`.
+      - name: Assert Package.swift agrees with release.env
+        run: make check-manifest
+
+      # A dependency's manifest is compiled through a VFS overlay with no rest
+      # of the checkout, so any file read in it fails for every consumer while
+      # still working at the repo root. Resolve it as a real git dependency.
+      - name: Assert the manifest evaluates as a dependency
         run: |
           set -euo pipefail
           . ./release.env
-          swift package dump-package > /tmp/manifest.json
-          grep -q "download/v${VERSION}/LibMobileCoinLibrary.xcframework.zip" /tmp/manifest.json
-          grep -q "\"${XCFRAMEWORK_SHA256}\"" /tmp/manifest.json
+          DEP=$(mktemp -d)
+          git clone --quiet --local . "$DEP/libmobilecoin"
+          git -C "$DEP/libmobilecoin" tag -f "$VERSION"
+          APP=$(mktemp -d)
+          mkdir -p "$APP/Sources/App"
+          echo 'public let a = 1' > "$APP/Sources/App/App.swift"
+          cat > "$APP/Package.swift" <<EOF
+          // swift-tools-version:5.7
+          import PackageDescription
+          let package = Package(
+              name: "App",
+              platforms: [.iOS(.v13), .macOS(.v11)],
+              dependencies: [.package(url: "$DEP/libmobilecoin", exact: "$VERSION")],
+              targets: [.target(name: "App")])
+          EOF
+          cd "$APP" && swift package dump-package > /dev/null
+
+  swiftpm:
+    name: SwiftPM resolve and build
+    runs-on: macos-15
+    needs: release-asset
+    if: needs.release-asset.outputs.exists == 'true'
+    steps:
+      - uses: actions/checkout@v4
 
       # resolve downloads the binaryTarget and verifies its checksum, so a stale
       # or wrong XCFRAMEWORK_SHA256 fails here.
@@ -52,6 +105,8 @@ jobs:
   podspec:
     name: pod lib lint
     runs-on: macos-15
+    needs: release-asset
+    if: needs.release-asset.outputs.exists == 'true'
     strategy:
       fail-fast: false
       matrix:

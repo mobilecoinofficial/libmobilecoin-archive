@@ -2,6 +2,8 @@
 # and LibMobileCoin.podspec read the same file. Plain KEY=value lines, so make
 # includes it directly.
 include release.env
+$(if $(VERSION),,$(error release.env has no VERSION))
+$(if $(XCFRAMEWORK_SHA256),,$(error release.env has no XCFRAMEWORK_SHA256))
 
 MOBILECOIN_DIR = Vendor/mobilecoin
 LIBMOBILECOIN_LIB_DIR = libmobilecoin
@@ -122,8 +124,8 @@ publish: stamp commit-stamp tag-release upload-release publish-podspec
 
 .PHONY: commit-stamp
 commit-stamp:
-	@git diff --quiet -- release.env || \
-		{ git add release.env && \
+	@git diff --quiet -- release.env Package.swift || \
+		{ git add release.env Package.swift && \
 			git commit -m "chore: stamp release.env for v$(VERSION)"; }
 
 .PHONY: publish-hotfix
@@ -152,10 +154,26 @@ package:
 # the podspec both read it from there, so this is the whole stamp step.
 .PHONY: stamp
 stamp:
-	@CHECKSUM="$$(tools/package-xcframework.sh \
-		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)")" && \
-		sed -i '' "s|^XCFRAMEWORK_SHA256=.*|XCFRAMEWORK_SHA256=$$CHECKSUM|" release.env && \
-		echo "release.env stamped with $$CHECKSUM"
+	@set -eu; \
+	CHECKSUM="$$(tools/package-xcframework.sh \
+		"$(ARTIFACTS_DIR)/LibMobileCoinLibrary.xcframework" "$(RELEASE_ZIP)")"; \
+	grep -q "^XCFRAMEWORK_SHA256=" release.env || \
+		{ echo "error: release.env has no XCFRAMEWORK_SHA256= line to stamp" >&2; exit 1; }; \
+	sed -i '' "s|^XCFRAMEWORK_SHA256=.*|XCFRAMEWORK_SHA256=$$CHECKSUM|" release.env; \
+	grep -q "^XCFRAMEWORK_SHA256=$$CHECKSUM$$" release.env || \
+		{ echo "error: stamping release.env did not take" >&2; exit 1; }; \
+	echo "release.env stamped with $$CHECKSUM"
+	@$(MAKE) --no-print-directory stamp-manifest
+
+# Push release.env into Package.swift's literals.
+.PHONY: stamp-manifest
+stamp-manifest:
+	tools/stamp-package-swift.sh
+
+# Fail if Package.swift and release.env disagree.
+.PHONY: check-manifest
+check-manifest:
+	tools/stamp-package-swift.sh --check
 
 # Attach the packaged zip to the release for the tag tag-release just pushed.
 # Package.swift and the podspec both point a consumer at this exact URL, so

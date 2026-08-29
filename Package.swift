@@ -1,29 +1,13 @@
 // swift-tools-version:5.7
 import PackageDescription
-import Foundation
-
-// release.env is the single source of truth for the version and the checksum of
-// the released xcframework. The release workflow writes it, and the podspec and
-// the Makefile read the same file.
-func releaseSetting(_ key: String) -> String {
-    let path = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .appendingPathComponent("release.env")
-    guard let contents = try? String(contentsOf: path, encoding: .utf8) else {
-        fatalError("libmobilecoin: cannot read release.env at \(path.path)")
-    }
-    for line in contents.split(separator: "\n") {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.hasPrefix("#"), let equals = trimmed.firstIndex(of: "=") else { continue }
-        guard trimmed[trimmed.startIndex..<equals] == key else { continue }
-        return String(trimmed[trimmed.index(after: equals)...])
-            .trimmingCharacters(in: .whitespaces)
-    }
-    fatalError("libmobilecoin: release.env has no \(key)")
-}
-
-let version = releaseSetting("VERSION")
-let xcframeworkChecksum = releaseSetting("XCFRAMEWORK_SHA256")
+// release.env is the single source of truth for these two. `make stamp` writes
+// them in here; a manifest cannot read a sidecar file at resolve time.
+//
+// SwiftPM compiles a dependency's manifest through a VFS overlay that presents
+// it at "/Package.swift", so both #filePath and Context.packageDirectory give
+// "/" and any read fails with "error: Invalid manifest".
+let version = "6.0.4"
+let xcframeworkChecksum = "11add94b73891b3203d627590fe3a1c3c53c561cf9f8817cbb7c378f78736527"
 
 let package = Package(
     name: "libmobilecoin",

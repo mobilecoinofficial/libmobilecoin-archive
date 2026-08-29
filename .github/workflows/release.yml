@@ -58,12 +58,18 @@ jobs:
           ruby-version: '3.1'
           bundler-cache: true
 
+      # The foundation tree carries its own Brewfile with protobuf and
+      # openssl@1.1, neither of which is on the runner image. Fetch it first.
+      - name: Fetch the pinned foundation revision
+        run: make vendor
+
       - name: Install build dependencies
         run: |
           set -euo pipefail
           brew update-reset
           brew install llvm ninja pkg-config
           brew bundle --no-upgrade
+          brew bundle --no-upgrade --file Vendor/mobilecoin/Brewfile
 
       - name: Install Rust
         run: |
@@ -116,6 +122,30 @@ jobs:
           name: LibMobileCoinLibrary.xcframework.zip
           path: .build/LibMobileCoinLibrary.xcframework.zip
           retention-days: 7
+
+      # Cheap, and it runs before anything is pushed. A dependency's manifest is
+      # compiled through a VFS overlay with no rest of the checkout, so a file
+      # read in it works at the repo root and fails for every consumer.
+      - name: Assert the manifest evaluates as a dependency
+        run: |
+          set -euo pipefail
+          . ./release.env
+          DEP=$(mktemp -d)
+          git clone --quiet --local . "$DEP/libmobilecoin"
+          git -C "$DEP/libmobilecoin" tag -f "$VERSION"
+          APP=$(mktemp -d)
+          mkdir -p "$APP/Sources/App"
+          echo 'public let a = 1' > "$APP/Sources/App/App.swift"
+          cat > "$APP/Package.swift" <<EOF
+          // swift-tools-version:5.7
+          import PackageDescription
+          let package = Package(
+              name: "App",
+              platforms: [.iOS(.v13), .macOS(.v11)],
+              dependencies: [.package(url: "$DEP/libmobilecoin", exact: "$VERSION")],
+              targets: [.target(name: "App")])
+          EOF
+          cd "$APP" && swift package dump-package > /dev/null
 
       - name: Commit the stamp and tag
         if: ${{ !inputs.dry_run }}
