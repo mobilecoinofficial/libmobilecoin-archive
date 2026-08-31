@@ -1,6 +1,6 @@
 #!/bin/bash
-# Without set -e the last statement is an echo, so a missing cmake still exits 0
-# and `make setup` reports success with the iOS patch never applied.
+# set -e, so a missing cmake fails `make setup` rather than exiting on the
+# final echo with the iOS patch never applied.
 set -euo pipefail
 
 command -v cmake >/dev/null || { echo "error: cmake not on PATH" >&2; exit 1; }
