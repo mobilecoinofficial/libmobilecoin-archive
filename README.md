@@ -37,11 +37,11 @@ Please check your country's laws before downloading or using this software.
 | [Vendor](./Vendor) | Fog submodule. |
 | [tools](./tools) | Build and packaging scripts. |
 
-The prebuilt `LibMobileCoinLibrary.xcframework` is no longer committed. Each
-release attaches `LibMobileCoinLibrary.xcframework.zip` as a GitHub release
-asset. SwiftPM pulls it through `.binaryTarget(url:checksum:)` and CocoaPods
-pulls the same archive in `prepare_command`, both verified against the same
-SHA256. Neither consumer needs git-lfs.
+Each release attaches `LibMobileCoinLibrary.xcframework.zip` as a GitHub
+release asset. SwiftPM pulls it through `.binaryTarget(url:checksum:)` and
+CocoaPods pulls the same archive in `prepare_command`, both verified against
+the same SHA256. The repository carries no prebuilt binary, so neither consumer
+needs git-lfs.
 
 `make package` rebuilds that archive from a local `make` build. The script
 normalizes mode, mtime and entry order, so the same xcframework tree always
