@@ -37,9 +37,9 @@ let package = Package(
     dependencies: [
         // Here we define our package's external dependencies
         // and from where they can be fetched:
-        // The floor tracks the protoc-gen-swift pin in the Makefile. Generated
-        // code calls runtime API that did not exist in the old floor, so a
-        // consumer resolving below this fails to compile.
+        // The floor matches the protoc-gen-swift pin in the Makefile, so the
+        // committed sources and the runtime come from one version. Generated
+        // code calls _NameMap(bytecode:), which 1.31 is the first to supply.
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
             from: "1.36.1"
