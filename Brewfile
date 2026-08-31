@@ -1,2 +1,8 @@
 brew "cbindgen"
+brew "cmake"
 brew "git-lfs"
+brew "go"
+brew "llvm"
+brew "ninja"
+brew "pkgconf"
+brew "protobuf"
