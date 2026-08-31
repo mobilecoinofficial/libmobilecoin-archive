@@ -83,8 +83,6 @@ setup:
 ios: out/ios/target
 
 .PHONY: $(ALL_ARCHS_IOS)
-x86_64-apple-ios aarch64-apple-ios: CARGO_ENV_FLAGS += CFLAGS="-DPB_NO_PACKED_STRUCTS=1"
-x86_64-apple-ios aarch64-apple-ios: CARGO_ENV_FLAGS += CXXFLAGS="-DPB_NO_PACKED_STRUCTS=1"
 aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios: CARGO_ENV_FLAGS += IPHONEOS_DEPLOYMENT_TARGET="$(IOS_DEPLOYMENT_TARGET)"
 # bindgen maps the Rust target to arm64-apple-ios-sim, which clang rejects
 # because the environment is spelled -simulator. Hand it the real triple.
