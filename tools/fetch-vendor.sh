@@ -26,8 +26,8 @@ fi
 # leave a half-populated tree with no error. mkdir is atomic on every filesystem
 # we build on; flock is not on macOS.
 LOCK_DIR="$REPO_ROOT/Vendor/.mobilecoin.lock"
-# is_locked tracks OUR mkdir. Testing [ -d "$LOCK_DIR" ] would read as success
-# exactly when another process holds the lock, so the timeout could never fire.
+# is_locked tracks OUR mkdir, so the loop below can tell "we hold the lock"
+# from "somebody else does" and time out on the second.
 is_locked=0
 for attempt in $(seq 1 300); do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
