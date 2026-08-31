@@ -4,7 +4,7 @@
 
 import Foundation
 
-public struct HTTPServiceDescriptor {
+public struct HTTPServiceDescriptor: Sendable {
     public let name: String
     public let fullName: String
     public let methods: [HTTPMethodDescriptor]

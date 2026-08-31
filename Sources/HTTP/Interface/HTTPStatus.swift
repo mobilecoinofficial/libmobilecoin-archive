@@ -5,7 +5,7 @@
 import Foundation
 
 /// Encapsulates the result of a HTTP call.
-public struct HTTPStatus {
+public struct HTTPStatus: Sendable {
 
     /// The REST status code
     public var code: Int

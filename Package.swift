@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:6.1
 import PackageDescription
 // release.env is the single source of truth for these two. `make stamp` writes
 // them in here; a manifest cannot read a sidecar file at resolve time.
@@ -35,11 +35,12 @@ let package = Package(
             targets: ["LibMobileCoinTestVector"])
     ],
     dependencies: [
-        // Here we define our package's external dependencies
-        // and from where they can be fetched:
+        // Floor is the protoc-gen-swift pin in the Makefile, so the runtime is
+        // never older than the generator that wrote Sources. Ceiling matches the
+        // podspec: 1.38 needs a Swift 6.1 compiler for `nonisolated extension`.
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            from: "1.28.2"
+            "1.36.1"..<"1.38.0"
         ),
         .package(url: "https://github.com/grpc/grpc-swift.git", from: "1.24.1")
     ],

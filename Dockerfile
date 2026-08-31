@@ -4,17 +4,32 @@ RUN apt-get -q update && apt-get -q install -y --no-install-recommends \
     make \
     && rm -r /var/lib/apt/lists/*
 
+# Every generator is pinned. Nothing here floats, because the committed sources
+# are a build artifact and an unpinned plugin makes them depend on the day the
+# container was built.
 ARG grpc_swift_version
+ARG swift_protobuf_version
+ARG http_swift_revision
 
 WORKDIR /root
 RUN git clone --depth 1 -b $grpc_swift_version https://github.com/grpc/grpc-swift.git
-RUN git clone --depth 1 https://github.com/mobilecoinofficial/protoc-gen-http-swift.git
+# swift-protobuf vendors upb as a submodule, and its manifest fails to load
+# without it, even when only protoc-gen-swift is wanted.
+RUN git clone --depth 1 --recurse-submodules -b $swift_protobuf_version \
+    https://github.com/apple/swift-protobuf.git
+RUN git clone https://github.com/mobilecoinofficial/protoc-gen-http-swift.git \
+    && cd protoc-gen-http-swift && git checkout $http_swift_revision
 
-WORKDIR grpc-swift
+# grpc-swift also vendors a protoc-gen-swift, but it takes whatever
+# swift-protobuf resolves that day, so only its own plugin is used from here.
+WORKDIR /root/grpc-swift
 RUN make plugins
 
-WORKDIR /root
-WORKDIR protoc-gen-http-swift
+WORKDIR /root/swift-protobuf
+RUN swift build -c release --product protoc-gen-swift \
+    && cp "$(swift build -c release --show-bin-path)/protoc-gen-swift" /root/protoc-gen-swift
+
+WORKDIR /root/protoc-gen-http-swift
 RUN make plugins
 
 FROM swift:focal as build
@@ -27,7 +42,7 @@ RUN apt-get -q update && apt-get -q install -y --no-install-recommends \
 
 COPY --from=plugins \
     /root/grpc-swift/protoc-gen-grpc-swift \
-    /root/grpc-swift/protoc-gen-swift \
+    /root/protoc-gen-swift \
     /root/protoc-gen-http-swift/protoc-gen-http-swift \
     /root/swift-plugins/bin/
 
