@@ -30,10 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
           # The workflow commits the stamped release.env.
           fetch-depth: 0
           persist-credentials: true
+
+      # The checkout follows the dispatched ref, so a dry run exercises the
+      # branch it was dispatched on.
+      - name: Refuse to release from anything but master
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/master" ]; then
+            echo "error: a release must be dispatched from master, got ${GITHUB_REF}" >&2
+            exit 1
+          fi
 
       - name: Read release settings
         id: settings
@@ -112,6 +122,16 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
             -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}" > /dev/null
           security list-keychain -d user -s "${KEYCHAIN}" login.keychain-db
+          # security import exits 0 even when it leaves no usable identity, so
+          # fail here rather than at codesign.
+          IDENTITIES="$(security find-identity -v -p codesigning "${KEYCHAIN}")"
+          # A name the log masker leaves in the clear is one that
+          # APPLE_SIGNING_IDENTITY does not match.
+          echo "${IDENTITIES}"
+          if ! grep -qE '^ +1\)' <<< "${IDENTITIES}"; then
+            echo "error: the p12 imported but left no codesigning identity" >&2
+            exit 1
+          fi
 
       - name: Sign the xcframework
         env:
@@ -122,10 +142,20 @@ jobs:
             echo "error: APPLE_SIGNING_IDENTITY is not set" >&2
             exit 1
           fi
+          ERR="${RUNNER_TEMP}/codesign.err"
           for attempt in 1 2 3 4 5; do
-            if codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
-                 .build/mc-artifacts/LibMobileCoinLibrary.xcframework; then
+            rc=0
+            codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
+              .build/mc-artifacts/LibMobileCoinLibrary.xcframework 2> "${ERR}" || rc=$?
+            cat "${ERR}" >&2
+            if [ "${rc}" = 0 ]; then
               break
+            fi
+            # Only a timestamp or network failure comes good on a retry, so
+            # anything else fails fast rather than under 150s of sleeps.
+            if ! grep -qiE 'timestamp|network|connection' "${ERR}"; then
+              echo "error: codesign failed for a reason a retry cannot fix" >&2
+              exit 1
             fi
             if [ "${attempt}" = 5 ]; then
               echo "error: codesign failed 5 times; timestamp.apple.com may be down" >&2
