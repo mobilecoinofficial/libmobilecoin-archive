@@ -18,6 +18,7 @@ MobileCoin is a privacy-preserving payments network designed for use on mobile d
 - [License](#license)
 - [Cryptography Notice](#cryptography-notice)
 - [Repository Structure](#repository-structure)
+- [Releasing](#releasing)
 - [Overview](#overview)
 - [Support](#support)
 - [Trademarks](#trademarks)
@@ -64,6 +65,25 @@ rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin
 
 To fetch from a mirror instead, set `MOBILECOIN_REMOTE`. The mirror needs
 `uploadpack.allowAnySHA1InWant`, because the fetch asks for a bare SHA.
+
+## Releasing
+
+`release.env` holds the version and the checksum of the released xcframework.
+`Package.swift`, `LibMobileCoin.podspec` and the `Makefile` all read it, so a
+release changes one file.
+
+To cut a release, bump `VERSION` in `release.env` on master, then run the
+**Release** workflow from the Actions tab. It builds the xcframework, writes the
+new checksum into `release.env`, commits that, creates the `v<VERSION>` tag,
+attaches the archive to the GitHub release, and pushes the pod.
+
+The workflow does not trigger on a tag push. The tagged commit has to already
+carry the asset checksum, and that is only known once the Rust build finishes.
+`make publish` does the same sequence locally.
+
+The **PR** workflow resolves and builds the SwiftPM package and lints every
+podspec subspec. Resolving verifies the binary target against
+`XCFRAMEWORK_SHA256`, so a stale checksum fails there.
 
 ## Overview
 

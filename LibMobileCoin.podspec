@@ -1,9 +1,16 @@
+# release.env is the single source of truth for the version and the checksum of
+# the released xcframework. Package.swift and the Makefile read the same file.
+release_settings = File.readlines(File.join(__dir__, "release.env"))
+  .reject { |line| line.strip.empty? || line.strip.start_with?("#") }
+  .map { |line| line.strip.split("=", 2) }
+  .to_h
+
 Pod::Spec.new do |s|
 
   # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
   s.name         = "LibMobileCoin"
-  s.version      = "6.0.4"
+  s.version      = release_settings.fetch("VERSION")
   s.summary      = "A library for communicating with MobileCoin network"
 
   s.author       = "MobileCoin"
@@ -21,7 +28,7 @@ Pod::Spec.new do |s|
   # same archive and checksum back the SwiftPM binaryTarget in Package.swift,
   # so neither consumer needs git-lfs.
   xcframework_url = "https://github.com/mobilecoinofficial/libmobilecoin/releases/download/v#{s.version}/LibMobileCoinLibrary.xcframework.zip"
-  xcframework_checksum = "11add94b73891b3203d627590fe3a1c3c53c561cf9f8817cbb7c378f78736527"
+  xcframework_checksum = release_settings.fetch("XCFRAMEWORK_SHA256")
 
   s.prepare_command = <<-CMD
     set -eu
@@ -49,7 +56,9 @@ Pod::Spec.new do |s|
 
   # ――― Platform Specifics ――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
-  s.platform     = :ios, "11.0"
+  # Matches the .iOS(.v13) floor in Package.swift. Xcode 15 and later reject a
+  # deployment target below 12.0 outright.
+  s.platform     = :ios, "13.0"
 
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
