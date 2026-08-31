@@ -43,11 +43,11 @@ asset. SwiftPM pulls it through `.binaryTarget(url:checksum:)` and CocoaPods
 pulls the same archive in `prepare_command`, both verified against the same
 SHA256. Neither consumer needs git-lfs.
 
-`Vendor/mobilecoin` is no longer a submodule either. `Vendor/mobilecoin.rev`
-holds the pinned foundation revision and `make vendor` runs
-`tools/fetch-vendor.sh` to check it out at depth 1. SwiftPM runs
-`submodule update --init` on every dependency checkout, so as a submodule it
-reached every consumer that only wanted the prebuilt binary.
+`Vendor/mobilecoin` is not a submodule either. `Vendor/mobilecoin.rev` holds
+the pinned foundation revision and `make vendor` runs `tools/fetch-vendor.sh`
+to check it out at depth 1. SwiftPM runs `submodule update --init` on every
+dependency checkout, so a submodule here would reach every consumer that only
+wants the prebuilt binary.
 
 If you have a checkout from before this change, `Vendor/mobilecoin` is still a
 submodule and the build stops with instructions rather than deleting it. Save

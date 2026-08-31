@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Check out the pinned mobilecoinfoundation/mobilecoin revision into
-# Vendor/mobilecoin. This used to be a git submodule, which meant every SwiftPM
-# consumer cloned the foundation monorepo on checkout. It is a build-time input
-# only, so the build fetches it instead.
+# Vendor/mobilecoin. It is a build-time input only, so the build fetches it
+# and no SwiftPM consumer carries the foundation monorepo in its checkout.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,14 +66,13 @@ if [ -e "$VENDOR_DIR/.git" ]; then
         echo "       Anything uncommitted in there is lost, so check it first." >&2
         exit 1
     fi
-    # An override has to reach an existing checkout too. remote add only ever
-    # ran on first init, so setting MOBILECOIN_REMOTE later looked like it
-    # worked and did nothing, and setting it once wired that URL in for good.
+    # set-url on every run, so MOBILECOIN_REMOTE reaches an existing checkout.
+    # remote add alone only takes effect the first time the tree is created.
     git -C "$VENDOR_DIR" remote set-url origin "$REMOTE" 2>/dev/null || \
         git -C "$VENDOR_DIR" remote add origin "$REMOTE"
     CURRENT="$(git -C "$VENDOR_DIR" rev-parse HEAD 2>/dev/null || echo none)"
     # --cached as well: plain `git diff` compares the worktree against the index
-    # and reports a staged edit as clean, so a tampered tree built silently.
+    # and reports a staged edit as clean, so a tampered tree would build.
     if [ "$CURRENT" = "$REV" ] &&
        git -C "$VENDOR_DIR" diff --quiet &&
        git -C "$VENDOR_DIR" diff --cached --quiet; then
