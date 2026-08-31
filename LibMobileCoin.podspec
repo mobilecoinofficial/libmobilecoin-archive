@@ -71,8 +71,11 @@ Pod::Spec.new do |s|
 
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
-  # s.default_subspecs = :none
-  s.default_subspecs = "Core"
+  # CocoaPods carries the HTTP transport only. gRPC-Swift tops out at 1.8.0 on
+  # trunk, whose Logging dependency tops out at 1.4.0. That version targets
+  # iOS 8.0, so clang links libarclite, which current Xcode does not ship.
+  # Package.swift carries the gRPC product.
+  s.default_subspecs = "CoreHTTP"
 
    s.subspec "TestVectors" do |subspec|
      subspec.resource_bundles = privacy_bundle
@@ -90,58 +93,22 @@ Pod::Spec.new do |s|
      ]
    end
 
-   s.subspec "Core" do |subspec|
-     subspec.resource_bundles = privacy_bundle
-
-     subspec.preserve_paths = [
-       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
-     ]
- 
-     subspec.source_files = [
-       "Artifacts/include/*.h",
-       "Sources/HTTP/*.{http}.swift",
-       "Sources/HTTP/Interface/*.swift",
-       "Sources/GRPC/*.{grpc}.swift",
-       "Sources/Common/*.{pb}.swift",
-     ]
- 
-     subspec.dependency "gRPC-Swift"
-     # Floor matches the protoc-gen-swift pin in the Makefile. 1.38 needs a
-     # Swift 6.1 compiler for the `nonisolated extension` in its sources.
-     subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
-   end
-
    s.subspec "CoreHTTP" do |subspec|
      subspec.resource_bundles = privacy_bundle
 
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
- 
+
      subspec.source_files = [
        "Artifacts/include/*.h",
        "Sources/HTTP/*.{http}.swift",
        "Sources/HTTP/Interface/*.swift",
        "Sources/Common/*.{pb}.swift",
      ]
- 
-     subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
-   end
 
-   s.subspec "CoreGRPC" do |subspec|
-     subspec.resource_bundles = privacy_bundle
-
-     subspec.preserve_paths = [
-       'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
-     ]
- 
-     subspec.source_files = [
-       "Artifacts/include/*.h",
-       "Sources/GRPC/*.{grpc}.swift",
-       "Sources/Common/*.{pb}.swift",
-     ]
- 
-     subspec.dependency "gRPC-Swift"
+     # Floor matches the protoc-gen-swift pin in the Makefile. 1.38 needs a
+     # Swift 6.1 compiler for the `nonisolated extension` in its sources.
      subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
    end
 

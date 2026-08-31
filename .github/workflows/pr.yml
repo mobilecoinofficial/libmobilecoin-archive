@@ -127,13 +127,6 @@ jobs:
     runs-on: macos-26
     needs: release-asset
     if: needs.release-asset.outputs.exists == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        # Core and CoreGRPC pull gRPC-Swift, whose pod graph tops out at
-        # Logging 1.4.0. Its iOS 8.0 target needs libarclite, which current
-        # Xcode does not ship. CoreHTTP is what MobileCoin-Swift depends on.
-        subspec: [CoreHTTP, TestVectors]
     steps:
       - uses: actions/checkout@v4
 
@@ -142,8 +135,9 @@ jobs:
           ruby-version: '3.1'
           bundler-cache: true
 
-      - name: Lint ${{ matrix.subspec }}
-        run: >
-          bundle exec pod lib lint LibMobileCoin.podspec
-          --subspec=${{ matrix.subspec }}
-          --allow-warnings
+      # No --subspec, because that is what `pod trunk push` runs. The validator
+      # builds every subspec and groups the ones sharing a dependency set, so a
+      # conflict between two subspecs surfaces here and nowhere else. Each group
+      # is labelled in the log, so a failure names the subspec it came from.
+      - name: Lint
+        run: bundle exec pod lib lint LibMobileCoin.podspec --allow-warnings
