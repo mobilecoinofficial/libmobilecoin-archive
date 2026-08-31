@@ -58,8 +58,8 @@ jobs:
           ruby-version: '3.1'
           bundler-cache: true
 
-      # The foundation tree carries its own Brewfile with protobuf and
-      # openssl@1.1, neither of which is on the runner image. Fetch it first.
+      # setup and build both depend on this target, so fetching here only
+      # moves a bad rev's failure ahead of the dependency install.
       - name: Fetch the pinned foundation revision
         run: make vendor
 
@@ -67,9 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           brew update-reset
-          brew install llvm ninja pkg-config
           brew bundle --no-upgrade
-          brew bundle --no-upgrade --file Vendor/mobilecoin/Brewfile
 
       - name: Install Rust
         run: |
