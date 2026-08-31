@@ -88,3 +88,7 @@ iOSInjectionProject/
 
 # The release xcframework, downloaded by the podspec prepare_command.
 /Artifacts/
+
+# Fetched by tools/fetch-vendor.sh at the revision in Vendor/mobilecoin.rev
+/Vendor/mobilecoin/
+/Vendor/.mobilecoin.lock/

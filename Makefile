@@ -19,8 +19,14 @@ endef
 .PHONY: default
 default: setup build clean-artifacts copy generate
 
+# Vendor/mobilecoin is a build-time input this target fetches. Every target
+# that reads it depends on this so a fresh clone builds without extra steps.
+.PHONY: vendor
+vendor:
+	tools/fetch-vendor.sh
+
 .PHONY: setup
-setup:
+setup: vendor
 	cd "$(LIBMOBILECOIN_LIB_DIR)" && $(MAKE) setup
 	bundle install
 
@@ -32,12 +38,9 @@ unexport CARGO_TARGET_DIR
 unexport CARGO_PROFILE
 
 .PHONY: build
-build:
+build: vendor
 	cd "$(LIBMOBILECOIN_LIB_DIR)" && $(MAKE)
 
-.PHONY: framework
-framework:
-	cd "$(LIBMOBILECOIN_LIB_DIR)" && $(MAKE) xcframework
 
 .PHONY: clean-artifacts
 clean-artifacts:
@@ -59,14 +62,14 @@ copy-libs:
 generate: generate-test-vectors generate-protoc 
 
 .PHONY: generate-protoc
-generate-protoc:
+generate-protoc: vendor
 	rm -r Sources/Generated/Proto 2>/dev/null || true
 	DOCKER_BUILDKIT=1 docker build . \
 		--build-arg grpc_swift_version=1.0.0 \
 		--output .
 
 .PHONY: generate-test-vectors
-generate-test-vectors:
+generate-test-vectors: vendor
 	rm -rf $(TEST_VECTOR_DIR)/vectors
 	cp -R $(MOBILECOIN_DIR)/test-vectors/vectors $(TEST_VECTOR_DIR)
 	cd $(TEST_VECTOR_DIR)/vectors && find . -type f -name '*.jsonl' -exec mv -fi '{}' ./ ';'
