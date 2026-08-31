@@ -36,6 +36,9 @@ CARGO_PACKAGE = libmobilecoin
 
 ALL_ARCHS_IOS = aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios x86_64-apple-darwin aarch64-apple-darwin
 
+# Matches the .iOS(.v13) floor in Package.swift and the podspec.
+IOS_DEPLOYMENT_TARGET = 13.0
+
 IOS_LIB = libmobilecoin.a
 IOS_LIB_STRIPPED = libmobilecoin_stripped.a
 IOS_C_HEADERS = include/*
@@ -82,7 +85,10 @@ ios: out/ios/target
 .PHONY: $(ALL_ARCHS_IOS)
 x86_64-apple-ios aarch64-apple-ios: CARGO_ENV_FLAGS += CFLAGS="-DPB_NO_PACKED_STRUCTS=1"
 x86_64-apple-ios aarch64-apple-ios: CARGO_ENV_FLAGS += CXXFLAGS="-DPB_NO_PACKED_STRUCTS=1"
-aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios: CARGO_ENV_FLAGS += IPHONEOS_DEPLOYMENT_TARGET="13.0"
+aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios: CARGO_ENV_FLAGS += IPHONEOS_DEPLOYMENT_TARGET="$(IOS_DEPLOYMENT_TARGET)"
+# bindgen maps the Rust target to arm64-apple-ios-sim, which clang rejects
+# because the environment is spelled -simulator. Hand it the real triple.
+aarch64-apple-ios-sim: CARGO_ENV_FLAGS += BINDGEN_EXTRA_CLANG_ARGS_aarch64_apple_ios_sim="--target=arm64-apple-ios$(IOS_DEPLOYMENT_TARGET)-simulator"
 x86_64-apple-darwin aarch64-apple-darwin: CARGO_ENV_FLAGS += MACOSX_DEPLOYMENT_TARGET="11.0"
 x86_64-apple-ios x86_64-apple-darwin: LD_ARCH = x86_64
 aarch64-apple-ios aarch64-apple-ios-sim aarch64-apple-darwin: LD_ARCH = arm64
