@@ -38,21 +38,25 @@ Please check your country's laws before downloading or using this software.
 | [Vendor](./Vendor) | Committed misty-swap protos, plus the pinned foundation revision that `make vendor` fetches into `Vendor/mobilecoin`. |
 | [tools](./tools) | Build and packaging scripts. |
 
-The prebuilt `LibMobileCoinLibrary.xcframework` is no longer committed. Each
-release attaches `LibMobileCoinLibrary.xcframework.zip` as a GitHub release
-asset. SwiftPM pulls it through `.binaryTarget(url:checksum:)` and CocoaPods
-pulls the same archive in `prepare_command`, both verified against the same
-SHA256. Neither consumer needs git-lfs.
+Each release attaches `LibMobileCoinLibrary.xcframework.zip` as a GitHub
+release asset. SwiftPM pulls it through `.binaryTarget(url:checksum:)` and
+CocoaPods pulls the same archive in `prepare_command`, both verified against
+the same SHA256. The repository carries no prebuilt binary, so neither consumer
+needs git-lfs.
 
-`Vendor/mobilecoin` is no longer a submodule either. `Vendor/mobilecoin.rev`
-holds the pinned foundation revision and `make vendor` runs
-`tools/fetch-vendor.sh` to check it out at depth 1. SwiftPM runs
-`submodule update --init` on every dependency checkout, so as a submodule it
-reached every consumer that only wanted the prebuilt binary.
+`make package` rebuilds that archive from a local `make` build. The script
+normalizes mode, mtime and entry order, so the same xcframework tree always
+produces the same checksum.
 
-If you have a checkout from before this change, `Vendor/mobilecoin` is still a
-submodule and the build stops with instructions rather than deleting it. Save
-anything uncommitted in there, then:
+`Vendor/mobilecoin` is not a submodule. `Vendor/mobilecoin.rev` holds
+the pinned foundation revision and `make vendor` runs `tools/fetch-vendor.sh`
+to check it out at depth 1. SwiftPM runs `submodule update --init` on every
+dependency checkout, so a submodule here would reach every consumer that only
+wants the prebuilt binary.
+
+If `Vendor/mobilecoin` is a submodule checkout in your clone, the build stops
+with instructions rather than deleting it. Save anything uncommitted in there,
+then:
 
 ```sh
 git submodule deinit -f Vendor/mobilecoin
@@ -61,10 +65,6 @@ rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin
 
 To fetch from a mirror instead, set `MOBILECOIN_REMOTE`. The mirror needs
 `uploadpack.allowAnySHA1InWant`, because the fetch asks for a bare SHA.
-
-`make package` rebuilds that archive from a local `make` build. The script
-normalizes mode, mtime and entry order, so the same xcframework tree always
-produces the same checksum.
 
 `LibMobileCoinTestVectors` is a separate product. The four `LibMobileCoinCore*`
 products carry no test fixtures, so a shipping app does not embed the vectors

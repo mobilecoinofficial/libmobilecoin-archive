@@ -47,7 +47,7 @@ jobs:
 
   manifest:
     name: Manifest and checkout shape
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
@@ -108,7 +108,7 @@ jobs:
 
   swiftpm:
     name: SwiftPM resolve and build
-    runs-on: macos-15
+    runs-on: macos-26
     needs: release-asset
     if: needs.release-asset.outputs.exists == 'true'
     steps:
@@ -124,7 +124,7 @@ jobs:
 
   podspec:
     name: pod lib lint
-    runs-on: macos-15
+    runs-on: macos-26
     needs: release-asset
     if: needs.release-asset.outputs.exists == 'true'
     strategy:

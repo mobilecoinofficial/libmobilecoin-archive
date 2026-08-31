@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Check out the pinned mobilecoinfoundation/mobilecoin revision into
-# Vendor/mobilecoin. This used to be a git submodule, which meant every SwiftPM
-# consumer cloned the foundation monorepo on checkout. It is a build-time input
-# only, so the build fetches it instead.
+# Vendor/mobilecoin. It is a build-time input only, so the build fetches it
+# and no SwiftPM consumer carries the foundation monorepo in its checkout.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,8 +26,8 @@ fi
 # leave a half-populated tree with no error. mkdir is atomic on every filesystem
 # we build on; flock is not on macOS.
 LOCK_DIR="$REPO_ROOT/Vendor/.mobilecoin.lock"
-# is_locked tracks OUR mkdir. Testing [ -d "$LOCK_DIR" ] would read as success
-# exactly when another process holds the lock, so the timeout could never fire.
+# is_locked tracks OUR mkdir, so the loop below can tell "we hold the lock"
+# from "somebody else does" and time out on the second.
 is_locked=0
 for attempt in $(seq 1 300); do
     if mkdir "$LOCK_DIR" 2>/dev/null; then
@@ -60,21 +59,20 @@ if [ -e "$VENDOR_DIR/.git" ]; then
     fi
     if [ -f "$VENDOR_DIR/.git" ]; then
         echo "error: $VENDOR_DIR is still a git submodule checkout." >&2
-        echo "       Vendor/mobilecoin is now a plain fetched tree." >&2
+        echo "       Vendor/mobilecoin is a plain fetched tree." >&2
         echo "       Migrate with:" >&2
         echo "         git submodule deinit -f Vendor/mobilecoin" >&2
         echo "         rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin" >&2
         echo "       Anything uncommitted in there is lost, so check it first." >&2
         exit 1
     fi
-    # An override has to reach an existing checkout too. remote add only ever
-    # ran on first init, so setting MOBILECOIN_REMOTE later looked like it
-    # worked and did nothing, and setting it once wired that URL in for good.
+    # set-url so MOBILECOIN_REMOTE reaches an existing checkout; the add
+    # covers a tree that has no origin yet.
     git -C "$VENDOR_DIR" remote set-url origin "$REMOTE" 2>/dev/null || \
         git -C "$VENDOR_DIR" remote add origin "$REMOTE"
     CURRENT="$(git -C "$VENDOR_DIR" rev-parse HEAD 2>/dev/null || echo none)"
-    # --cached as well: plain `git diff` compares the worktree against the index
-    # and reports a staged edit as clean, so a tampered tree built silently.
+    # --cached as well: plain `git diff` compares the worktree against the
+    # index, so a staged edit to a tracked file reads as clean.
     if [ "$CURRENT" = "$REV" ] &&
        git -C "$VENDOR_DIR" diff --quiet &&
        git -C "$VENDOR_DIR" diff --cached --quiet; then

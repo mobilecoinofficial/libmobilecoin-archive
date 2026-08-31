@@ -26,8 +26,8 @@ endef
 .PHONY: default
 default: setup build clean-artifacts copy generate
 
-# Vendor/mobilecoin is a build-time input, not a submodule. Every target that
-# reads it depends on this so a fresh clone builds without extra steps.
+# Vendor/mobilecoin is a build-time input this target fetches. Every target
+# that reads it depends on this so a fresh clone builds without extra steps.
 .PHONY: vendor
 vendor:
 	tools/fetch-vendor.sh
