@@ -44,6 +44,10 @@ CocoaPods pulls the same archive in `prepare_command`, both verified against
 the same SHA256. The repository carries no prebuilt binary, so neither consumer
 needs git-lfs.
 
+`make package` rebuilds that archive from a local `make` build. The script
+normalizes mode, mtime and entry order, so the same xcframework tree always
+produces the same checksum.
+
 `Vendor/mobilecoin` is not a submodule. `Vendor/mobilecoin.rev` holds
 the pinned foundation revision and `make vendor` runs `tools/fetch-vendor.sh`
 to check it out at depth 1. SwiftPM runs `submodule update --init` on every
@@ -61,10 +65,6 @@ rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin
 
 To fetch from a mirror instead, set `MOBILECOIN_REMOTE`. The mirror needs
 `uploadpack.allowAnySHA1InWant`, because the fetch asks for a bare SHA.
-
-`make package` rebuilds that archive from a local `make` build. The script
-normalizes mode, mtime and entry order, so the same xcframework tree always
-produces the same checksum.
 
 ## Releasing
 
