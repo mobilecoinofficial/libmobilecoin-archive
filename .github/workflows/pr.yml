@@ -130,7 +130,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        subspec: [Core, CoreHTTP, CoreGRPC, TestVectors]
+        # Core and CoreGRPC pull gRPC-Swift, whose pod graph tops out at
+        # Logging 1.4.0. Its iOS 8.0 target needs libarclite, which current
+        # Xcode does not ship. CoreHTTP is what MobileCoin-Swift depends on.
+        subspec: [CoreHTTP, TestVectors]
     steps:
       - uses: actions/checkout@v4
 
