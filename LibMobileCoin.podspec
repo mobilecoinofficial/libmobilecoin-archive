@@ -106,10 +106,9 @@ Pod::Spec.new do |s|
      ]
  
      subspec.dependency "gRPC-Swift"
-     # The floor matches the protoc-gen-swift pin in the Makefile. 1.38 emits
-     # `nonisolated extension`, which no toolchain below Swift 6.1 compiles,
-     # and the pods build targets older ones.
-     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
+     # Floor matches the protoc-gen-swift pin in the Makefile. 1.38 needs a
+     # Swift 6.1 compiler for the `nonisolated extension` in its sources.
+     subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
    end
 
    s.subspec "CoreHTTP" do |subspec|
@@ -126,7 +125,7 @@ Pod::Spec.new do |s|
        "Sources/Common/*.{pb}.swift",
      ]
  
-     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
+     subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
    end
 
    s.subspec "CoreGRPC" do |subspec|
@@ -143,7 +142,7 @@ Pod::Spec.new do |s|
      ]
  
      subspec.dependency "gRPC-Swift"
-     subspec.dependency "SwiftProtobuf", ">= 1.36", "< 1.38"
+     subspec.dependency "SwiftProtobuf", ">= 1.36.1", "< 1.38"
    end
 
   # ――― Project Settings ――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #

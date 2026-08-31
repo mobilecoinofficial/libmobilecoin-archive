@@ -35,12 +35,9 @@ let package = Package(
             targets: ["LibMobileCoinTestVector"])
     ],
     dependencies: [
-        // Here we define our package's external dependencies
-        // and from where they can be fetched:
         // Floor matches the protoc-gen-swift pin in the Makefile; below 1.31
-        // the runtime has no _NameMap(bytecode:) for the generated sources to
-        // call. Ceiling matches the podspec, whose consumers build below Swift
-        // 6.1 and cannot compile 1.38's `nonisolated extension`.
+        // the runtime has no _NameMap(bytecode:) to call. Ceiling matches the
+        // podspec: 1.38 needs a Swift 6.1 compiler for `nonisolated extension`.
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
             "1.36.1"..<"1.38.0"
