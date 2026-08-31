@@ -82,6 +82,11 @@ setup:
 .PHONY: ios
 ios: out/ios/target
 
+# mbedtls-sys-auto configures the vendored mbedtls with CMake, whose CMakeLists
+# declares a minimum below 3.5, and CMake 4 removed support for it. Set for
+# every target, because the configure that fails is the host build.
+CARGO_ENV_FLAGS += CMAKE_POLICY_VERSION_MINIMUM=3.5
+
 .PHONY: $(ALL_ARCHS_IOS)
 aarch64-apple-ios-sim aarch64-apple-ios x86_64-apple-ios: CARGO_ENV_FLAGS += IPHONEOS_DEPLOYMENT_TARGET="$(IOS_DEPLOYMENT_TARGET)"
 # bindgen maps the Rust target to arm64-apple-ios-sim, which clang rejects
