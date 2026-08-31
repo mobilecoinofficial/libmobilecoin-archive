@@ -6,7 +6,7 @@ import PackageDescription
 // SwiftPM compiles a dependency's manifest through a VFS overlay that presents
 // it at "/Package.swift", so both #filePath and Context.packageDirectory give
 // "/" and any read fails with "error: Invalid manifest".
-let version = "6.0.4"
+let version = "6.1.0"
 let xcframeworkChecksum = "11add94b73891b3203d627590fe3a1c3c53c561cf9f8817cbb7c378f78736527"
 
 let package = Package(
@@ -18,16 +18,21 @@ let package = Package(
     products: [
         .library(
             name: "LibMobileCoinCore",
-            targets: ["LibMobileCoinTestVector", "LibMobileCoinHTTP", "LibMobileCoinGRPC", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
+            targets: ["LibMobileCoinHTTP", "LibMobileCoinGRPC", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
         .library(
             name: "LibMobileCoinCoreCommon",
-            targets: ["LibMobileCoinTestVector", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
+            targets: ["LibMobileCoinCommon", "LibMobileCoinLibrary"]),
         .library(
             name: "LibMobileCoinCoreGRPC",
-            targets: ["LibMobileCoinTestVector", "LibMobileCoinGRPC", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
+            targets: ["LibMobileCoinGRPC", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
         .library(
             name: "LibMobileCoinCoreHTTP",
-            targets: ["LibMobileCoinTestVector", "LibMobileCoinHTTP", "LibMobileCoinCommon", "LibMobileCoinLibrary"])
+            targets: ["LibMobileCoinHTTP", "LibMobileCoinCommon", "LibMobileCoinLibrary"]),
+        // Test fixtures, kept out of the products above so a shipping app does
+        // not carry the vectors bundle. The podspec already splits them this way.
+        .library(
+            name: "LibMobileCoinTestVectors",
+            targets: ["LibMobileCoinTestVector"])
     ],
     dependencies: [
         // Here we define our package's external dependencies

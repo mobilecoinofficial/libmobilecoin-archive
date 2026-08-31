@@ -66,6 +66,10 @@ rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin
 To fetch from a mirror instead, set `MOBILECOIN_REMOTE`. The mirror needs
 `uploadpack.allowAnySHA1InWant`, because the fetch asks for a bare SHA.
 
+`LibMobileCoinTestVectors` is a separate product. The four `LibMobileCoinCore*`
+products carry no test fixtures, so a shipping app does not embed the vectors
+bundle. Test targets add the product explicitly.
+
 ## Releasing
 
 `release.env` holds the version and the checksum of the released xcframework.

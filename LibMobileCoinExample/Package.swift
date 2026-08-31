@@ -26,8 +26,13 @@ let package = Package(
             dependencies: [
                 .product(name: "LibMobileCoinCore", package: "libmobilecoin"),
             ]),
+        // TestVectorImports.swift imports LibMobileCoinTestVector, which is its
+        // own product, so the test target asks for it explicitly.
         .testTarget(
             name: "LibMobileCoinExampleTests",
-            dependencies: ["LibMobileCoinExample"]),
+            dependencies: [
+                "LibMobileCoinExample",
+                .product(name: "LibMobileCoinTestVectors", package: "libmobilecoin"),
+            ]),
     ]
 )
