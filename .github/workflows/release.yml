@@ -24,7 +24,7 @@ permissions:
 jobs:
   release:
     name: Build and publish
-    runs-on: macos-15
+    runs-on: macos-26
     # The Rust build covers five targets from a cold cache.
     timeout-minutes: 360
     steps:
