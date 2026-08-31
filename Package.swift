@@ -37,12 +37,13 @@ let package = Package(
     dependencies: [
         // Here we define our package's external dependencies
         // and from where they can be fetched:
-        // The floor matches the protoc-gen-swift pin in the Makefile, so the
-        // committed sources and the runtime come from one version. Generated
-        // code calls _NameMap(bytecode:), which 1.31 is the first to supply.
+        // Floor matches the protoc-gen-swift pin in the Makefile; below 1.31
+        // the runtime has no _NameMap(bytecode:) for the generated sources to
+        // call. Ceiling matches the podspec, whose consumers build below Swift
+        // 6.1 and cannot compile 1.38's `nonisolated extension`.
         .package(
             url: "https://github.com/apple/swift-protobuf.git",
-            from: "1.36.1"
+            "1.36.1"..<"1.38.0"
         ),
         .package(url: "https://github.com/grpc/grpc-swift.git", from: "1.24.1")
     ],
