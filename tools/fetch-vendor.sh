@@ -59,20 +59,20 @@ if [ -e "$VENDOR_DIR/.git" ]; then
     fi
     if [ -f "$VENDOR_DIR/.git" ]; then
         echo "error: $VENDOR_DIR is still a git submodule checkout." >&2
-        echo "       Vendor/mobilecoin is now a plain fetched tree." >&2
+        echo "       Vendor/mobilecoin is a plain fetched tree." >&2
         echo "       Migrate with:" >&2
         echo "         git submodule deinit -f Vendor/mobilecoin" >&2
         echo "         rm -rf .git/modules/Vendor/mobilecoin Vendor/mobilecoin" >&2
         echo "       Anything uncommitted in there is lost, so check it first." >&2
         exit 1
     fi
-    # set-url on every run, so MOBILECOIN_REMOTE reaches an existing checkout.
-    # remote add alone only takes effect the first time the tree is created.
+    # set-url so MOBILECOIN_REMOTE reaches an existing checkout; the add
+    # covers a tree that has no origin yet.
     git -C "$VENDOR_DIR" remote set-url origin "$REMOTE" 2>/dev/null || \
         git -C "$VENDOR_DIR" remote add origin "$REMOTE"
     CURRENT="$(git -C "$VENDOR_DIR" rev-parse HEAD 2>/dev/null || echo none)"
-    # --cached as well: plain `git diff` compares the worktree against the index
-    # and reports a staged edit as clean, so a tampered tree would build.
+    # --cached as well: plain `git diff` compares the worktree against the
+    # index, so a staged edit to a tracked file reads as clean.
     if [ "$CURRENT" = "$REV" ] &&
        git -C "$VENDOR_DIR" diff --quiet &&
        git -C "$VENDOR_DIR" diff --cached --quiet; then
