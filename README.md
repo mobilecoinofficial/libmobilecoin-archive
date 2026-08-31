@@ -70,6 +70,10 @@ To fetch from a mirror instead, set `MOBILECOIN_REMOTE`. The mirror needs
 products carry no test fixtures, so a shipping app does not embed the vectors
 bundle. Test targets add the product explicitly.
 
+`Sources/Common/PrivacyInfo.xcprivacy` is the privacy manifest. SwiftPM ships it
+as a resource of `LibMobileCoinCommon` and CocoaPods ships it in the
+`LibMobileCoin_Privacy` resource bundle, so both consumers get one copy.
+
 ## Releasing
 
 `release.env` holds the version and the checksum of the released xcframework.
@@ -84,6 +88,11 @@ attaches the archive to the GitHub release, and pushes the pod.
 The workflow does not trigger on a tag push. The tagged commit has to already
 carry the asset checksum, and that is only known once the Rust build finishes.
 `make publish` does the same sequence locally.
+
+Releases are code signed. The workflow needs `APPLE_CERTIFICATE_P12` (base64 of
+a Developer ID .p12), `APPLE_CERTIFICATE_PASSWORD` and `APPLE_SIGNING_IDENTITY`
+as repository secrets, and fails without them. Signing runs before packaging,
+because it rewrites bytes inside the xcframework.
 
 The **PR** workflow resolves and builds the SwiftPM package and lints every
 podspec subspec. Resolving verifies the binary target against

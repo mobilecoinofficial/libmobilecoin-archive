@@ -55,7 +55,13 @@ let package = Package(
         .target(
             name: "LibMobileCoinCommon",
             dependencies: [.product(name: "SwiftProtobuf", package: "swift-protobuf")],
-            path: "Sources/Common"
+            path: "Sources/Common",
+            // Every shipping product includes this target, so one copy reaches
+            // every consumer. The manifest declares no tracking, and file
+            // timestamps as the one accessed API category.
+            resources: [
+                .copy("PrivacyInfo.xcprivacy")
+            ]
          ),
         .target(
             name: "LibMobileCoinHTTP",

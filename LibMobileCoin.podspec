@@ -60,12 +60,23 @@ Pod::Spec.new do |s|
   # deployment target below 12.0 outright.
   s.platform     = :ios, "13.0"
 
+  # ――― Privacy manifest ―――――――――――――――――――――――――――――――――――――――――――――――――――――― #
+
+  # resource_bundles is NOT inherited, so each subspec declares it from this
+  # constant. Setting it on the root spec too makes `pod lib lint` build the
+  # bundle twice under one name and fail with "Multiple commands produce".
+  privacy_bundle = {
+    "LibMobileCoin_Privacy" => ["Sources/Common/PrivacyInfo.xcprivacy"]
+  }
+
   # ――― Subspecs ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
 
   # s.default_subspecs = :none
   s.default_subspecs = "Core"
 
    s.subspec "TestVectors" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.source_files = [
        "Sources/TestVector/Util/Bundle+TestVector.swift",
        "Sources/TestVector/Util/TestVectorError.swift"
@@ -80,6 +91,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "Core" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
@@ -97,6 +110,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "CoreHTTP" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
@@ -112,6 +127,8 @@ Pod::Spec.new do |s|
    end
 
    s.subspec "CoreGRPC" do |subspec|
+     subspec.resource_bundles = privacy_bundle
+
      subspec.preserve_paths = [
        'Artifacts/LibMobileCoinLibrary.xcframework/**/*.a',
      ]
