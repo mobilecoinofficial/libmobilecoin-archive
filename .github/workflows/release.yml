@@ -96,86 +96,17 @@ jobs:
       - name: Build the xcframework
         run: make setup build clean-artifacts copy
 
-      # Signing changes the bytes inside the xcframework, so it has to happen
-      # before the archive is built and checksummed. It runs in a dry run too,
-      # otherwise the whole signing path stays unexercised until a real release
-      # and the dry run checksums an archive no release would ever publish.
-      - name: Import the signing certificate
-        env:
-          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "${CERTIFICATE_P12}" ]; then
-            echo "error: APPLE_CERTIFICATE_P12 is not set, so the release cannot be signed" >&2
-            exit 1
-          fi
-          KEYCHAIN="${RUNNER_TEMP}/signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(uuidgen)"
-          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
-          security set-keychain-settings -lut 21600 "${KEYCHAIN}"
-          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}"
-          echo "${CERTIFICATE_P12}" | base64 --decode > "${RUNNER_TEMP}/certificate.p12"
-          security import "${RUNNER_TEMP}/certificate.p12" \
-            -k "${KEYCHAIN}" -P "${CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
-          rm -f "${RUNNER_TEMP}/certificate.p12"
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
-            -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN}" > /dev/null
-          security list-keychain -d user -s "${KEYCHAIN}" login.keychain-db
-          # security import exits 0 even when it leaves no usable identity, so
-          # fail here rather than at codesign.
-          IDENTITIES="$(security find-identity -v -p codesigning "${KEYCHAIN}")"
-          # A name the log masker leaves in the clear is one that
-          # APPLE_SIGNING_IDENTITY does not match.
-          echo "${IDENTITIES}"
-          if ! grep -qE '^ +1\)' <<< "${IDENTITIES}"; then
-            echo "error: the p12 imported but left no codesigning identity" >&2
-            exit 1
-          fi
-
-      - name: Sign the xcframework
-        env:
-          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${SIGNING_IDENTITY}" ]; then
-            echo "error: APPLE_SIGNING_IDENTITY is not set" >&2
-            exit 1
-          fi
-          ERR="${RUNNER_TEMP}/codesign.err"
-          for attempt in 1 2 3 4 5; do
-            rc=0
-            codesign --force --timestamp --sign "${SIGNING_IDENTITY}" \
-              .build/mc-artifacts/LibMobileCoinLibrary.xcframework 2> "${ERR}" || rc=$?
-            cat "${ERR}" >&2
-            if [ "${rc}" = 0 ]; then
-              break
-            fi
-            # Only a timestamp or network failure comes good on a retry, so
-            # anything else fails fast rather than under 150s of sleeps.
-            if ! grep -qiE 'timestamp|network|connection' "${ERR}"; then
-              echo "error: codesign failed for a reason a retry cannot fix" >&2
-              exit 1
-            fi
-            if [ "${attempt}" = 5 ]; then
-              echo "error: codesign failed 5 times; timestamp.apple.com may be down" >&2
-              exit 1
-            fi
-            echo "codesign attempt ${attempt} failed, retrying in $((attempt * 15))s" >&2
-            sleep $((attempt * 15))
-          done
-          codesign --verify --strict --verbose=2 \
-            .build/mc-artifacts/LibMobileCoinLibrary.xcframework
-
       - name: Package and stamp release.env
         run: make stamp
 
-      - name: Verify the archive matches the stamped checksum
+      - name: Verify the archive matches its checksum and opens
         run: |
           set -euo pipefail
           . ./release.env
           echo "${XCFRAMEWORK_SHA256}  .build/LibMobileCoinLibrary.xcframework.zip" \
             | shasum -a 256 -c -
+          # A checksum proves the bytes, not that the archive opens.
+          unzip -qt .build/LibMobileCoinLibrary.xcframework.zip
 
       # Two runs of the packager over one xcframework must agree, otherwise a
       # consumer can resolve a checksum the manifest never carried.
@@ -194,16 +125,6 @@ jobs:
             echo "  second: $SECOND" >&2
             exit 1
           }
-
-      # The packager rewrites mode and mtime on every file, so prove the seal
-      # still verifies after a round trip through the archive.
-      - name: Verify the signature survives the archive
-        run: |
-          set -euo pipefail
-          UNPACKED="$(mktemp -d)"
-          unzip -q .build/LibMobileCoinLibrary.xcframework.zip -d "${UNPACKED}"
-          codesign --verify --strict --verbose=2 \
-            "${UNPACKED}/LibMobileCoinLibrary.xcframework"
 
       - name: Upload the archive as a workflow artifact
         uses: actions/upload-artifact@v4

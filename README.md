@@ -89,11 +89,6 @@ The workflow does not trigger on a tag push. The tagged commit has to already
 carry the asset checksum, and that is only known once the Rust build finishes.
 `make publish` does the same sequence locally.
 
-Releases are code signed. The workflow needs `APPLE_CERTIFICATE_P12` (base64 of
-a Developer ID .p12), `APPLE_CERTIFICATE_PASSWORD` and `APPLE_SIGNING_IDENTITY`
-as repository secrets, and fails without them. Signing runs before packaging,
-because it rewrites bytes inside the xcframework.
-
 The **PR** workflow resolves and builds the SwiftPM package and lints every
 podspec subspec. Resolving verifies the binary target against
 `XCFRAMEWORK_SHA256`, so a stale checksum fails there.
