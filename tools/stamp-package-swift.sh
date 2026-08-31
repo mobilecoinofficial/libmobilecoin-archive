@@ -49,8 +49,8 @@ if [ "$CHECK" = 1 ]; then
     exit 0
 fi
 
-# Anchored on the exact let-binding, so nothing else holding the old version
-# string is rewritten.
+# Anchored on the exact let-binding, so no other line carrying the same string
+# is rewritten.
 sed -i '' \
     -e "s|^let version = \".*\"\$|let version = \"$VERSION\"|" \
     -e "s|^let xcframeworkChecksum = \".*\"\$|let xcframeworkChecksum = \"$XCFRAMEWORK_SHA256\"|" \
